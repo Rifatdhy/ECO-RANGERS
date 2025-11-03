@@ -19,11 +19,14 @@ return new class extends Migration
             $table->decimal('lat', 10, 7)->nullable();
             $table->decimal('lng', 10, 7)->nullable();
             $table->string('foto_path')->nullable();
-            $table->enum('status', ['Pending','Diproses','Selesai'])->default('Pending');
+
+            // ✅ ENUM fix — izinkan 4 status + versi huruf besar & kecil
+            $table->string('status')->default('Pending')
+                  ->checkIn(['Pending','pending','Diproses','diproses','Selesai','selesai','resolved','Resolved']);
+
             $table->timestamps();
         });
     }
-
 
     /**
      * Reverse the migrations.
