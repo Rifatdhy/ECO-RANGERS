@@ -1,29 +1,15 @@
-// lib/config.dart
-import 'dart:io';
-import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // Impor dotenv
 
-// Kalau pakai HP fisik, ISI IP KOMPUTER kamu di sini, contoh: 'http://192.168.0.111:8000'
-// Kalau pakai emulator Android Studio, ubah ke null (biar pakai 10.0.2.2)
-const String? FORCE_BASE = 'http://192.168.0.111:8000';
+// Baris ini bisa Anda aktifkan jika butuh pengujian cepat,
+// namun lebih baik gunakan file .env
+// const String? FORCE_BASE = 'http://192.168.0.116:8000';
 
 late String baseUrl;
 
+// ensureBaseUrl sekarang hanya membaca dari dotenv
 Future<void> ensureBaseUrl() async {
-  if (FORCE_BASE != null) {
-    baseUrl = FORCE_BASE!;
-    return;
-  }
-  if (kIsWeb) {
-    baseUrl = 'http://127.0.0.1:8000';
-    return;
-  }
-  if (Platform.isAndroid) {
-    // emulator Android
-    baseUrl = 'http://10.0.2.2:8000';
-  } else {
-    // iOS sim / desktop
-    baseUrl = 'http://127.0.0.1:8000';
-  }
+  // Ambil nilai dari .env, jika tidak ada, gunakan string kosong sebagai fallback
+  baseUrl = dotenv.env['API_BASE_URL'] ?? '';
 }
 
 Uri api(String path, [Map<String, dynamic>? query]) {
@@ -31,32 +17,47 @@ Uri api(String path, [Map<String, dynamic>? query]) {
   return (query == null || query.isEmpty)
       ? uri
       : uri.replace(queryParameters: {
-    ...uri.queryParameters,
-    ...query.map((k, v) => MapEntry(k, '$v')),
-  });
+          ...uri.queryParameters,
+          ...query.map((k, v) => MapEntry(k, '$v')),
+        });
 }
 
-// Bangun URL gambar yang aman dipakai di HP (ganti host 127.0.0.1/localhost → baseUrl)
+// Bangun URL gambar yang aman untuk semua platform (Web & Mobile)
 String? imageUrlFrom(Map<String, dynamic> r) {
   final raw = (r['foto_url'] as String?)?.trim();
   final path = (r['foto_path'] as String?)?.trim();
+  String? finalPath;
 
-  if (raw != null && raw.isNotEmpty) {
+  // Prioritas 1: Gunakan `foto_path` jika tersedia, karena ini adalah path relatif yang bersih.
+  if (path != null && path.isNotEmpty) {
+    finalPath = path;
+  }
+  // Prioritas 2: Jika tidak ada, coba ekstrak path dari `foto_url`.
+  else if (raw != null && raw.isNotEmpty) {
     try {
       final u = Uri.parse(raw);
-      // jika API mengembalikan 127.0.0.1 / localhost, ganti host-nya dengan host dari baseUrl
-      if (u.host == '127.0.0.1' || u.host == 'localhost') {
-        return '$baseUrl${u.path}';
+      // Cek apakah URL ini menunjuk ke path storage lama.
+      if (u.path.startsWith('/storage/')) {
+        // Ekstrak path relatifnya. Contoh: '/storage/reports/img.jpg' -> 'reports/img.jpg'
+        finalPath = u.path.substring('/storage/'.length);
       }
-      return raw; // sudah benar
     } catch (_) {
-      /* ignore parse error */
+      // Abaikan jika URL tidak valid. `finalPath` akan tetap null.
     }
   }
 
-  // fallback ke path storage
-  if (path != null && path.isNotEmpty) {
-    return '$baseUrl/storage/$path';
+  // Jika kita berhasil mendapatkan path relatif (dari salah satu sumber di atas),
+  // bangun URL menggunakan rute proxy API yang baru.
+  if (finalPath != null && finalPath.isNotEmpty) {
+    return '$baseUrl/api/files/$finalPath';
   }
+
+  // Fallback terakhir: Jika `foto_url` adalah URL absolut yang valid
+  // dan bukan URL storage (misalnya dari CDN atau domain publik lain), kembalikan apa adanya.
+  if (raw != null && Uri.tryParse(raw)?.hasAbsolutePath == true && !raw.contains('/storage/')) {
+      return raw;
+  }
+
+  // Jika tidak ada sumber yang valid, kembalikan null.
   return null;
 }

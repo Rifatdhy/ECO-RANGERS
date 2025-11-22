@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart'; // Impor XFile
 import '../config.dart';
 import '../models/laporan.dart';
 import 'auth_service.dart';
@@ -21,13 +23,14 @@ class ApiClient {
     return jsonDecode(res.body) as List;
   }
 
+  // DIUBAH: Terima objek XFile, bukan hanya path
   Future<Map<String, dynamic>> createReport({
     required String judul,
     required String deskripsi,
     double? lat,
     double? lng,
     String? lokasiText,
-    String? imagePath, // path file lokal (Android)
+    XFile? imageFile,
   }) async {
     final req = http.MultipartRequest('POST', api('/api/reports'))
       ..headers['Accept'] = 'application/json'
@@ -41,8 +44,20 @@ class ApiClient {
         if (lokasiText != null) 'lokasi_text': lokasiText,
       });
 
-    if (imagePath != null && imagePath.isNotEmpty) {
-      req.files.add(await http.MultipartFile.fromPath('foto', imagePath));
+    // DIUBAH: Logika kondisional untuk melampirkan file
+    if (imageFile != null) {
+      if (kIsWeb) {
+        // Untuk Web: baca file sebagai bytes dan gunakan fromBytes
+        final bytes = await imageFile.readAsBytes();
+        req.files.add(http.MultipartFile.fromBytes(
+          'foto', 
+          bytes, 
+          filename: imageFile.name // Jangan lupa sertakan nama file
+        ));
+      } else {
+        // Untuk Mobile: gunakan fromPath seperti sebelumnya
+        req.files.add(await http.MultipartFile.fromPath('foto', imageFile.path));
+      }
     }
 
     final sent = await req.send();
@@ -54,16 +69,11 @@ class ApiClient {
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
-  // ===== Perbaikan baru untuk Admin =====
-
-  /// Ambil list laporan dan langsung dipetakan ke model [Laporan]
   Future<List<Laporan>> fetchReportsAsModel() async {
     final list = await getReports();
-    // Gunakan Laporan.fromJson untuk parsing
     return list.map<Laporan>((e) => Laporan.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  /// Ubah status laporan (Pending/Diproses/Selesai)
   Future<Map<String, dynamic>> updateStatus(int id, String status) async {
     final t = await AuthService.instance.getToken();
     final res = await http.patch(
@@ -81,7 +91,6 @@ class ApiClient {
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
-  /// Hapus laporan
   Future<void> deleteReport(int id) async {
     final t = await AuthService.instance.getToken();
     final res = await http.delete(

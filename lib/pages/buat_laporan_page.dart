@@ -1,11 +1,11 @@
 import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../services/api_client.dart';
-import '../locator.dart'; // Impor locator
+import '../locator.dart';
 
 class BuatLaporanPage extends StatefulWidget {
   const BuatLaporanPage({super.key});
@@ -18,21 +18,22 @@ class _BuatLaporanPageState extends State<BuatLaporanPage> {
   final _formKey = GlobalKey<FormState>();
   final _judulController = TextEditingController();
   final _deskripsiController = TextEditingController();
-  File? _image;
-  String? _lokasi; // "lat, lng"
+  
+XFile? _pickedImage;
+  String? _lokasi; 
   bool _isSending = false;
 
   Future<void> _ambilFoto() async {
     final ImagePicker picker = ImagePicker();
     final XFile? xfile = await picker.pickImage(
-      source: ImageSource.camera, // WAJIB pakai named parameter
-      maxWidth: 1600, // opsional, batasi resolusi
-      imageQuality: 85, // opsional, kompresi 0-100
+      source: ImageSource.camera,
+      maxWidth: 1600,
+      imageQuality: 85,
     );
 
     if (xfile != null) {
       setState(() {
-        _image = File(xfile.path);
+        _pickedImage = xfile;
       });
     }
   }
@@ -40,9 +41,7 @@ class _BuatLaporanPageState extends State<BuatLaporanPage> {
   Future<void> _ambilLokasi() async {
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Lokasi tidak aktif")));
+      if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lokasi tidak aktif")));
       return;
     }
 
@@ -60,7 +59,7 @@ class _BuatLaporanPageState extends State<BuatLaporanPage> {
   }
 
   Future<void> _kirimLaporan() async {
-    if (!_formKey.currentState!.validate() || _image == null || _lokasi == null) {
+    if (!_formKey.currentState!.validate() || _pickedImage == null || _lokasi == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Lengkapi semua data terlebih dahulu")),
       );
@@ -78,29 +77,26 @@ class _BuatLaporanPageState extends State<BuatLaporanPage> {
         lng = double.tryParse(parts[1].trim());
       }
 
-      // Gunakan locator untuk mendapatkan instance ApiClient
       await locator<ApiClient>().createReport(
         judul: _judulController.text,
         deskripsi: _deskripsiController.text,
         lokasiText: _lokasi,
         lat: lat,
         lng: lng,
-        imagePath: _image!.path,
+        imageFile: _pickedImage,
       );
+      
+      if (!mounted) return; // Cek sebelum menampilkan SnackBar dan navigasi
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Laporan berhasil dikirim!")),
       );
-      _judulController.clear();
-      _deskripsiController.clear();
-      setState(() {
-        _image = null;
-        _lokasi = null;
-      });
+      
+      // DIUBAH: Kembali ke halaman sebelumnya (Dashboard)
+      Navigator.pop(context);
+
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Gagal kirim: $e")));
+      if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Gagal kirim: $e")));
     } finally {
       if (mounted) {
         setState(() => _isSending = false);
@@ -113,7 +109,6 @@ class _BuatLaporanPageState extends State<BuatLaporanPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Buat Laporan"),
-        backgroundColor: Colors.green,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -125,7 +120,6 @@ class _BuatLaporanPageState extends State<BuatLaporanPage> {
                 controller: _judulController,
                 decoration: const InputDecoration(
                   labelText: "Judul Laporan",
-                  border: OutlineInputBorder(),
                 ),
                 validator: (v) => (v == null || v.isEmpty) ? 'Judul tidak boleh kosong' : null,
               ),
@@ -134,15 +128,18 @@ class _BuatLaporanPageState extends State<BuatLaporanPage> {
                 controller: _deskripsiController,
                 decoration: const InputDecoration(
                   labelText: "Deskripsi",
-                  border: OutlineInputBorder(),
                 ),
                 maxLines: 3,
                 validator: (v) => (v == null || v.isEmpty) ? 'Deskripsi tidak boleh kosong' : null,
               ),
               const SizedBox(height: 16),
-              _image != null
-                  ? Image.file(_image!, height: 150)
-                  : const Text("Belum ada foto"),
+              if (_pickedImage != null)
+                kIsWeb
+                  ? Image.network(_pickedImage!.path, height: 150)
+                  : Image.file(File(_pickedImage!.path), height: 150)
+              else 
+                const Text("Belum ada foto"),
+
               const SizedBox(height: 8),
               ElevatedButton.icon(
                 onPressed: _ambilFoto,
@@ -161,11 +158,7 @@ class _BuatLaporanPageState extends State<BuatLaporanPage> {
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: _isSending ? null : _kirimLaporan,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(double.infinity, 50),
-                ),
+                style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
                 child: _isSending 
                     ? const CircularProgressIndicator(color: Colors.white) 
                     : const Text("Kirim Laporan"),

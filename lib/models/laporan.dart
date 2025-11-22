@@ -32,7 +32,8 @@ class Laporan {
               ? '${m['lat']}, ${m['lng']}'
               : '-'),
       fotoPath: m['foto_path'] as String? ?? '',
-      fotoUrl: imageUrlFrom(m), // Fungsi dari config.dart
+      // DIUBAH: Selalu bangun URL dari path, jangan percaya pada 'foto_url' dari API list
+      fotoUrl: imageUrlFrom({'foto_path': m['foto_path']}),
       status: m['status'] as String? ?? 'Pending',
       tanggal: DateTime.tryParse(m['created_at']?.toString() ?? '') ?? DateTime.now(),
     );
