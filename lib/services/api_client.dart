@@ -1,13 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
-import 'package:image_picker/image_picker.dart'; // Impor XFile
+import 'package:image_picker/image_picker.dart';
 import '../config.dart';
 import '../models/laporan.dart';
 import 'auth_service.dart';
 
 class ApiClient {
-  // Mengembalikan List<Map<String, dynamic>> mentah
   Future<List<dynamic>> getReports() async {
     final t = await AuthService.instance.getToken();
     final res = await http.get(
@@ -23,7 +22,6 @@ class ApiClient {
     return jsonDecode(res.body) as List;
   }
 
-  // DIUBAH: Terima objek XFile, bukan hanya path
   Future<Map<String, dynamic>> createReport({
     required String judul,
     required String deskripsi,
@@ -44,18 +42,11 @@ class ApiClient {
         if (lokasiText != null) 'lokasi_text': lokasiText,
       });
 
-    // DIUBAH: Logika kondisional untuk melampirkan file
     if (imageFile != null) {
       if (kIsWeb) {
-        // Untuk Web: baca file sebagai bytes dan gunakan fromBytes
         final bytes = await imageFile.readAsBytes();
-        req.files.add(http.MultipartFile.fromBytes(
-          'foto', 
-          bytes, 
-          filename: imageFile.name // Jangan lupa sertakan nama file
-        ));
+        req.files.add(http.MultipartFile.fromBytes('foto', bytes, filename: imageFile.name));
       } else {
-        // Untuk Mobile: gunakan fromPath seperti sebelumnya
         req.files.add(await http.MultipartFile.fromPath('foto', imageFile.path));
       }
     }
@@ -74,19 +65,40 @@ class ApiClient {
     return list.map<Laporan>((e) => Laporan.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  Future<Map<String, dynamic>> updateStatus(int id, String status) async {
+  Future<Map<String, dynamic>> updateReportStatus({
+    required int id,
+    required String status,
+    String? namaPetugas,
+    String? keterangan,
+    XFile? documentationImage,
+  }) async {
     final t = await AuthService.instance.getToken();
-    final res = await http.patch(
-      api('/api/reports/$id/status'),
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        if (t != null) 'Authorization': 'Bearer $t',
-      },
-      body: jsonEncode({'status': status.toLowerCase()}),
-    );
+    final req = http.MultipartRequest('POST', api('/api/reports/$id/status'))
+      ..headers['Accept'] = 'application/json'
+      ..headers['Authorization'] = 'Bearer ${t ?? ''}';
+
+    req.fields['status'] = status.toLowerCase();
+    if (namaPetugas != null) {
+      req.fields['nama_petugas'] = namaPetugas;
+    }
+    if (keterangan != null) {
+      req.fields['keterangan'] = keterangan;
+    }
+    
+    if (documentationImage != null) {
+      if (kIsWeb) {
+        final bytes = await documentationImage.readAsBytes();
+        req.files.add(http.MultipartFile.fromBytes('foto_dokumentasi', bytes, filename: documentationImage.name));
+      } else {
+        req.files.add(await http.MultipartFile.fromPath('foto_dokumentasi', documentationImage.path));
+      }
+    }
+
+    final sent = await req.send();
+    final res = await http.Response.fromStream(sent);
+
     if (res.statusCode != 200) {
-      throw Exception('PATCH status gagal: ${res.statusCode} ${res.body}');
+      throw Exception('POST update status gagal: ${res.statusCode} ${res.body}');
     }
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
@@ -103,5 +115,23 @@ class ApiClient {
     if (res.statusCode != 200) {
       throw Exception('DELETE gagal: ${res.statusCode} ${res.body}');
     }
+  }
+
+  Future<String> clearAllReports() async {
+    final t = await AuthService.instance.getToken();
+    final res = await http.post(
+      api('/api/admin/clear-all-reports'),
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer ${t ?? ''}',
+      },
+    );
+
+    if (res.statusCode != 200) {
+      throw Exception('Gagal membersihkan laporan: ${res.statusCode} ${res.body}');
+    }
+
+    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    return data['message'] ?? 'Proses selesai.';
   }
 }

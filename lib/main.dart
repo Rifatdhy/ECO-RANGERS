@@ -1,4 +1,4 @@
-import 'package:device_preview/device_preview.dart'; // Impor Device Preview
+import 'package:device_preview/device_preview.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -15,11 +15,10 @@ Future<void> main() async {
   setupLocator();
   await ensureBaseUrl();
   
-  // Bungkus root aplikasi dengan DevicePreview
+  // FIX: Mengaktifkan kembali DevicePreview
   runApp(
     DevicePreview(
-      // Aktifkan hanya jika dalam mode debug
-      enabled: !kReleaseMode, 
+      enabled: !kReleaseMode,
       builder: (context) => const EcoRangersApp(),
     ),
   );
@@ -31,13 +30,17 @@ class EcoRangersApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      // Konfigurasi penting untuk DevicePreview
+      // FIX: Mengaktifkan kembali konfigurasi DevicePreview
       locale: DevicePreview.locale(context),
       builder: DevicePreview.appBuilder,
       
       title: 'Eco Rangers',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme, 
+      
+      themeMode: ThemeMode.system,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      
       home: const SplashScreen(),
     );
   }

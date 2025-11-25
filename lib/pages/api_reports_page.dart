@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/api_client.dart';
 import '../models/laporan.dart';
-import '../locator.dart'; // Impor locator
+import '../locator.dart';
+import 'laporan_detail_page.dart'; // Import halaman detail
 
 class ApiReportsPage extends StatefulWidget {
   const ApiReportsPage({super.key});
@@ -12,7 +13,6 @@ class ApiReportsPage extends StatefulWidget {
 
 class _ApiReportsPageState extends State<ApiReportsPage> {
   late Future<List<Laporan>> _reportsFuture;
-  // Gunakan locator untuk mendapatkan instance ApiClient
   final ApiClient _apiClient = locator<ApiClient>();
 
   @override
@@ -27,11 +27,26 @@ class _ApiReportsPageState extends State<ApiReportsPage> {
     });
   }
 
+  // FUNGSI BARU: Untuk navigasi dan refresh data
+  void _navigateToDetail(Laporan laporan) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LaporanDetailPage(laporan: laporan),
+      ),
+    );
+
+    // Jika halaman detail ditutup dan mengembalikan `true`, refresh daftar ini
+    if (result == true) {
+      _loadReports();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Laporan (API)'),
+        title: const Text('Laporan Saya'), // Judul diubah
         backgroundColor: Colors.green,
       ),
       body: RefreshIndicator(
@@ -52,7 +67,7 @@ class _ApiReportsPageState extends State<ApiReportsPage> {
             }
             final data = snap.data ?? [];
             if (data.isEmpty) {
-              return const Center(child: Text('Belum ada laporan'));
+              return const Center(child: Text('Anda belum membuat laporan.')); // Pesan diubah
             }
 
             return ListView.builder(
@@ -62,6 +77,7 @@ class _ApiReportsPageState extends State<ApiReportsPage> {
                 return Card(
                   margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   child: ListTile(
+                    onTap: () => _navigateToDetail(laporan), // DIUBAH: Tambahkan onTap
                     isThreeLine: true,
                     leading: laporan.fotoUrl != null
                         ? ClipRRect(
