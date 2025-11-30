@@ -62,6 +62,12 @@ class _DaftarLaporanPageState extends State<DaftarLaporanPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Daftar Laporan'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadReports,
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: () async => _loadReports(),

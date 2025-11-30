@@ -89,6 +89,10 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
       appBar: AppBar(
         title: Text(_buildAppBarTitle()),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadReports,
+          ),
           if (_selectedDate != null || _selectedStatus != null)
             IconButton(
               icon: const Icon(Icons.clear),

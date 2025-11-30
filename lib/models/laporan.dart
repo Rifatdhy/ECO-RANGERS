@@ -50,6 +50,13 @@ class Laporan {
     this.user, // Tambahkan di konstruktor
   });
 
+  String get lokasi {
+    if (latitude != null && longitude != null) {
+      return '$latitude,$longitude';
+    }
+    return lokasiText ?? 'Lokasi tidak tersedia';
+  }
+
   factory Laporan.fromJson(Map<String, dynamic> json) {
     final fotoPath = json['foto_path'] as String?;
     

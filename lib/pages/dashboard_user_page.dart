@@ -58,6 +58,10 @@ class _DashboardUserPageState extends State<DashboardUserPage> {
         title: const Text("Dasbor"),
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadReports,
+          ),
+          IconButton(
             icon: const Icon(Icons.logout_outlined),
             tooltip: 'Logout',
             onPressed: () async {

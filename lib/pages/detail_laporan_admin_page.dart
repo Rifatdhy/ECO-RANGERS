@@ -37,7 +37,7 @@ class _DetailLaporanAdminPageState extends State<DetailLaporanAdminPage> {
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
-      await _api.updateStatus(widget.laporan.id, _status);
+      await _api.updateReportStatus(id: widget.laporan.id, status: _status);
       widget.onUpdate(widget.laporan, _status);
       if (mounted) Navigator.pop(context);
     } catch (e) {
@@ -71,7 +71,7 @@ class _DetailLaporanAdminPageState extends State<DetailLaporanAdminPage> {
   Widget build(BuildContext context) {
     final String? imgUrl =
         widget.laporan.fotoUrl ??
-        (widget.laporan.fotoPath.isNotEmpty
+        (widget.laporan.fotoPath != null && widget.laporan.fotoPath!.isNotEmpty
             ? '$baseUrl/storage/${widget.laporan.fotoPath}'
             : null);
     
