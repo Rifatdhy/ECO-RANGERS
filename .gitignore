@@ -25,7 +25,6 @@ vendor/
 node_modules/
 public/storage/
 storage/*.key
-.env
 .env.*.backup
 
 # ---- OS / Editor ----
