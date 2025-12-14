@@ -28,7 +28,7 @@ class _UpdateStatusPageState extends State<UpdateStatusPage> {
   @override
   void initState() {
     super.initState();
-    _selectedStatus = widget.laporan.status;
+    _selectedStatus = widget.laporan.status.toLowerCase();
   }
 
   Future<void> _pickImage() async {
