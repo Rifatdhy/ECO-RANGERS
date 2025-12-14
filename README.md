@@ -1,7 +1,8 @@
-Eco Rangers — Cara Menjalankan Project (Local)
+**Eco Rangers — Cara Menjalankan Project (Local)**
 Prasyarat
 
 Pastikan sudah ter-install:
+
 Git
 PHP 8.x
 Composer
@@ -10,26 +11,36 @@ Node.js + npm (opsional, jika ada build asset tertentu)
 Flutter SDK (jika ada aplikasi Flutter)
 Android Studio / Emulator / Device (untuk Flutter)
 
-1) Clone Repository
+1) Clone Repository:
+   
 git clone https://github.com/rifatdhiya/Project-Eco-Rangers.git
 cd Project-Eco-Rangers
 
-2) Menjalankan Backend (Laravel API)
+3) Menjalankan Backend (Laravel API)
 Masuk ke folder backend:
+
 cd eco-rangers-api
 
+
 Install dependency:
+
 composer install
 
+
 Siapkan file environment:
+
 cp .env.example .env
+
+
 php artisan key:generate
+
+
 
 Konfigurasi Database
 Opsi A — SQLite (paling mudah untuk local)
 
 Buat file database:
-# Windows (PowerShell):
+windows powershell
 New-Item -ItemType File -Path database/database.sqlite -Force
 
 Edit .env:
@@ -82,8 +93,11 @@ Jika Anda menjalankan di Android emulator, gunakan:
 http://10.0.2.2:8000
 
 Jalankan aplikasi:
+
 flutter run
 
 4) Menjalankan BDD / Testing (Jika Digunakan):
+   
 cd eco-rangers-api
+
 vendor/bin/behat
