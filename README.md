@@ -42,7 +42,6 @@ Pastikan semua perangkat lunak berikut telah terinstal di sistem Anda. Jika belu
 | **PHP**             | [php.net/downloads](https://www.php.net/downloads)               | `php --version`             |
 | **Composer**        | [getcomposer.org/download](https://getcomposer.org/download)     | `composer --version`        |
 | **Node.js & npm**   | [nodejs.org](https://nodejs.org/) (Unduh versi **LTS**) | `node -v` dan `npm -v` |
-| **CocoaPods** (macOS) | [guides.cocoapods.org/using/getting-started.html](https://guides.cocoapods.org/using/getting-started.html) | `pod --version` |
 
 > **PENTING untuk Node.js:** Saat menginstal di Windows, pastikan Anda membiarkan opsi **"Add to PATH"** tetap aktif (default) agar perintah `npm` dapat dikenali di terminal. Setelah instalasi, **tutup dan buka kembali terminal Anda**.
 
@@ -62,11 +61,7 @@ Langkah-langkah ini akan menyiapkan server API lokal Anda dari awal.
 
 2.  **Buat File Environment (`.env`):**
     ```sh
-    # Untuk Windows (Command Prompt atau PowerShell)
     copy .env.example .env
-
-    # Untuk macOS/Linux
-    cp .env.example .env
     ```
 
 3.  **Instal Dependensi (PHP & Node.js):**
@@ -82,25 +77,16 @@ Langkah-langkah ini akan menyiapkan server API lokal Anda dari awal.
     ```
 
 5.  **Buat File Database SQLite:**
+    Gunakan perintah ini di PowerShell.
     ```powershell
-    # PowerShell (Windows)
     New-Item -ItemType File -Path database\database.sqlite
-    
-    # macOS/Linux
-    touch database/database.sqlite
     ```
 
 6.  **Jalankan Migrasi & Seeding Database:**
     *   Buat tabel database: `php artisan migrate`
     *   Isi dengan data awal: `php artisan db:seed`
 
-7.  **Catatan untuk Pengguna macOS & Linux (Izin Folder):**
-    Jika Anda mengalami error terkait izin tulis, jalankan perintah ini dari dalam folder `eco-rangers-api`:
-    ```sh
-    chmod -R 777 storage bootstrap/cache
-    ```
-
-8.  **Jalankan Server API:**
+7.  **Jalankan Server API:**
     ```sh
     php artisan serve --host=0.0.0.0
     ```
@@ -113,11 +99,7 @@ Buka **terminal baru** dan pastikan Anda berada di direktori root `eco_rangers`.
 
 1.  **Buat File Environment (`.env`):**
     ```sh
-    # Windows
     copy .env.example .env
-
-    # macOS/Linux
-    cp .env.example .env
     ```
 
 2.  **Konfigurasi Alamat API:**
@@ -128,15 +110,7 @@ Buka **terminal baru** dan pastikan Anda berada di direktori root `eco_rangers`.
     flutter pub get
     ```
 
-4.  **Instalasi Khusus iOS:**
-    Jika Anda menggunakan macOS untuk menjalankan di Simulator iOS atau perangkat iPhone, jalankan juga perintah ini:
-    ```sh
-    cd ios
-    pod install
-    cd ..
-    ```
-
-5.  **Jalankan Aplikasi Flutter:**
+4.  **Jalankan Aplikasi Flutter:**
     Pastikan target (emulator, perangkat, atau web) berjalan, lalu jalankan:
     ```sh
     flutter run
@@ -151,12 +125,6 @@ Buka **terminal baru** dan pastikan Anda berada di direktori root `eco_rangers`.
 
 *   **Error Migrasi Laravel (mis: `could not find driver`):**
     Ini biasanya berarti ekstensi PHP untuk SQLite belum aktif. Cari file `php.ini` Anda dan hapus tanda titik koma (`;`) di depan baris `extension=sqlite3` dan `extension=pdo_sqlite`, lalu restart server Anda jika ada.
-
-*   **Error Izin Tulis (Laravel):**
-    Jika ada error tentang `The stream or file ".../storage/logs/laravel.log" could not be opened`, jalankan perintah `chmod -R 777 storage bootstrap/cache` dari dalam folder API.
-
-*   **Error Build iOS (mis: `GeneratedPluginRegistrant.h not found`):**
-    Ini hampir selalu berarti Anda lupa menjalankan `pod install`. Ikuti langkah #4 di bagian Frontend.
 
 *   **"Connection refused" di Perangkat Fisik:**
     1.  Pastikan server API berjalan dengan `php artisan serve --host=0.0.0.0`.
