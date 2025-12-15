@@ -14,14 +14,18 @@ class ReportController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        // Eager load relasi 'user' dan 'updates'
         $query = Report::with(['user', 'updates'])->orderByDesc('id');
 
-        if ($user && $user->tokenCan('role:admin')) {
-            // Admin melihat semua laporan
+        if ($user) { // <-- PERUBAHAN DI SINI
+            if ($user->tokenCan('role:admin')) {
+                // Admin melihat semua laporan (tidak ada filter tambahan)
+            } else {
+                // Pengguna biasa hanya melihat laporan mereka sendiri
+                $query->where('user_id', $user->id);
+            }
         } else {
-            // Pengguna biasa hanya melihat laporan mereka sendiri
-            $query->where('user_id', $user->id);
+            // Jika tidak ada user (tamu), jangan tampilkan laporan sama sekali.
+            return response()->json([]); // <-- PERUBAHAN DI SINI
         }
 
         $reports = $query->get();
@@ -31,7 +35,6 @@ class ReportController extends Controller
             $report->updates->each(function ($update) {
                 $update->foto_dokumentasi_url = $update->foto_dokumentasi ? asset('storage/' . $update->foto_dokumentasi) : null;
             });
-            // title-case the status for BDD expectations
             $report->status = ucfirst($report->status);
         });
 
@@ -46,8 +49,6 @@ class ReportController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        // Eager load relasi 'user' dan 'updates'
-        // Eager load relasi 'user' dan 'updates'
         $report->load(['user', 'updates']);
         $report->status = ucfirst($report->status);
         return response()->json($report);
@@ -77,11 +78,7 @@ class ReportController extends Controller
             'status'      => 'pending',
         ]);
 
-        // Muat relasi user setelah dibuat
         $report->load('user');
-
-        // Normalisasi format status yang dikembalikan agar cocok dengan
-        // ekspektasi acceptance tests (title-cased)
         $report->status = ucfirst($report->status);
 
         return response()->json(['report' => $report], 201);
@@ -89,7 +86,6 @@ class ReportController extends Controller
 
     public function updateStatus(Request $request, Report $report)
     {
-        // Normalisasi input status menjadi lowercase agar validasi case-insensitive
         if ($request->has('status')) {
             $request->merge(['status' => strtolower($request->input('status'))]);
         }
@@ -118,9 +114,7 @@ class ReportController extends Controller
             $report->save();
         });
 
-        // Eager load relasi 'user' dan 'updates' setelah update
         $report->load(['user', 'updates']);
-        // Normalisasi status yang ditampilkan agar sesuai ekspektasi BDD
         $report->status = ucfirst($report->status);
 
         return response()->json([
@@ -159,9 +153,7 @@ class ReportController extends Controller
             Storage::disk('public')->delete($documentationFiles);
 
             // 2. Hapus semua data dari tabel (metode yang kompatibel dengan SQLite & MySQL)
-            // Hapus dari tabel anak (child) terlebih dahulu
             DB::table('report_updates')->delete();
-            // Baru hapus dari tabel induk (parent)
             DB::table('reports')->delete();
         });
 
