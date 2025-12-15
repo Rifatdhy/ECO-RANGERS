@@ -24,7 +24,9 @@ Proyek ini dibangun dengan Flutter untuk frontend dan Laravel untuk backend. Pan
 /eco_rangers
 ├── .env.example          # Contoh file environment untuk Flutter
 ├── eco-rangers-api/      # Direktori backend (Laravel API)
-│   └── .env.example      # Contoh file environment untuk Laravel
+│   ├── .env.example      # Contoh file environment untuk Laravel
+│   └── database/
+│       └── database.sqlite   # File database (dibuat saat instalasi)
 ├── lib/                  # Kode sumber aplikasi Flutter
 └── README.md             # File panduan yang sedang Anda baca
 ```
@@ -50,8 +52,7 @@ Pastikan semua perangkat lunak berikut telah terinstal di sistem Anda. Jika belu
 <a name="backend"></a>
 ### Backend (Laravel API)
 
-Langkah-langkah ini akan menyiapkan server API lokal Anda.
-> **💡 Info:** Database SQLite sudah disertakan dalam repositori ini, jadi Anda tidak perlu membuat atau memigrasi database secara manual.
+Langkah-langkah ini akan menyiapkan server API lokal Anda dari awal.
 
 1.  **Masuk ke Direktori API:**
     ```sh
@@ -59,14 +60,15 @@ Langkah-langkah ini akan menyiapkan server API lokal Anda.
     ```
 
 2.  **Buat File Environment (`.env`):**
-    Salin file contoh untuk membuat file konfigurasi lokal Anda.
+    File ini berisi semua konfigurasi untuk API Anda, termasuk koneksi database.
     ```sh
+    # Untuk Windows (Command Prompt atau PowerShell)
+    copy .env.example .env
+
     # Untuk macOS/Linux
     cp .env.example .env
-    
-    # Untuk Windows
-    copy .env.example .env
     ```
+    > File `.env.example` sudah dikonfigurasi untuk menggunakan SQLite, jadi Anda tidak perlu mengubahnya lagi.
 
 3.  **Instal Dependensi (PHP & Node.js):**
     Jalankan perintah-perintah berikut secara berurutan.
@@ -85,16 +87,34 @@ Langkah-langkah ini akan menyiapkan server API lokal Anda.
         ```
 
 4.  **Hasilkan Kunci Aplikasi:**
+    Setiap aplikasi Laravel membutuhkan kunci enkripsi yang unik.
     ```sh
     php artisan key:generate
     ```
 
-5.  **Jalankan Server API:**
-    Jalankan perintah ini agar API dapat diakses dari perangkat lain di jaringan Anda.
+5.  **Buat File Database SQLite:**
+    Buat file kosong yang akan menjadi database Anda.
+
+    *   **Opsi 1: Otomatis (PowerShell di Windows):**
+        ```powershell
+        New-Item -ItemType File -Path database\database.sqlite
+        ```
+
+    *   **Opsi 2: Manual:**
+        Masuk ke folder `eco-rangers-api/database/` dan buat file baru bernama `database.sqlite`.
+
+6.  **Jalankan Migrasi & Seeding Database:**
+    Perintah ini akan membuat semua tabel yang dibutuhkan dan mengisinya dengan data awal (seperti akun admin).
+    ```sh
+    php artisan migrate --seed
+    ```
+
+7.  **Jalankan Server API:**
+    Sekarang API Anda siap dijalankan.
     ```sh
     php artisan serve --host=0.0.0.0
     ```
-    > Biarkan terminal ini tetap berjalan. API Anda sekarang aktif di port 8000.
+    > Biarkan terminal ini tetap berjalan. API Anda sekarang aktif dan dapat diakses di port 8000.
 
 <a name="frontend"></a>
 ### Frontend (Aplikasi Flutter)
@@ -104,11 +124,11 @@ Sekarang mari kita siapkan aplikasi selulernya. Buka **terminal baru** dan pasti
 1.  **Buat File Environment (`.env`):**
     Sama seperti backend, aplikasi Flutter juga butuh file `.env` untuk mengetahui alamat API.
     ```sh
-    # Untuk macOS/Linux
-    cp .env.example .env
-
     # Untuk Windows
     copy .env.example .env
+
+    # Untuk macOS/Linux
+    cp .env.example .env
     ```
 
 2.  **Konfigurasi Alamat API:**
@@ -145,6 +165,9 @@ Sekarang mari kita siapkan aplikasi selulernya. Buka **terminal baru** dan pasti
 
 *   **`npm` atau `node` is not recognized:**
     Ini berarti Node.js tidak terinstal atau tidak ada di PATH sistem Anda. Instal Node.js versi **LTS** dari [nodejs.org](https://nodejs.org/) dan pastikan opsi "Add to PATH" diaktifkan saat instalasi. Jangan lupa untuk membuka ulang terminal setelahnya.
+
+*   **Error Migrasi: `no such table: migrations` atau sejenisnya:**
+    Ini biasanya terjadi jika Anda lupa membuat file `database.sqlite` (langkah #5 di bagian backend) sebelum menjalankan `php artisan migrate`.
 
 *   **"Connection refused" di Perangkat Fisik:**
     1.  Pastikan server API berjalan dengan `php artisan serve --host=0.0.0.0`.
