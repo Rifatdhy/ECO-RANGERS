@@ -6,19 +6,11 @@ build/
 
 # ---- Android ----
 android/.gradle/                 # cache boleh di-ignore
-# Pastikan file penting Android TETAP di-track:
-!android/gradlew
-!android/gradlew.bat
-!android/gradle/wrapper/
-!android/gradle/wrapper/gradle-wrapper.jar
-!android/build.gradle
-!android/settings.gradle
-!android/gradle.properties
-!android/app/src/main/**         # Java/Kotlin, AndroidManifest, res
-!android/app/build.gradle
+android/build/
 
 # ---- iOS ----
 ios/Pods/
+ios/build/
 
 # ---- Laravel / Node ----
 vendor/

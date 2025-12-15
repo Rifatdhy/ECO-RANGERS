@@ -1,103 +1,145 @@
-**Eco Rangers — Cara Menjalankan Project (Local)**
-Prasyarat
+# 🌍 Eco Rangers
 
-Pastikan sudah ter-install:
+Selamat datang di Eco Rangers! Sebuah proyek aplikasi seluler yang dirancang untuk **[Jelaskan secara singkat apa fungsi aplikasi Anda di sini, misalnya: melacak aktivitas daur ulang dan memberikan edukasi lingkungan]**.
 
-Git
-PHP 8.x
-Composer
-SQLite (atau MySQL/PostgreSQL jika project Anda pakai itu)
-Node.js + npm (opsional, jika ada build asset tertentu)
-Flutter SDK (jika ada aplikasi Flutter)
-Android Studio / Emulator / Device (untuk Flutter)
+Proyek ini dibangun dengan Flutter untuk frontend dan Laravel untuk backend. Panduan ini akan membantu Anda menjalankan proyek ini di lingkungan pengembangan lokal Anda.
 
-1) Clone Repository:
-   
-git clone https://github.com/rifatdhiya/Project-Eco-Rangers.git
-cd Project-Eco-Rangers
+---
 
-3) Menjalankan Backend (Laravel API)
-Masuk ke folder backend:
+## 📚 Daftar Isi
 
-cd eco-rangers-api
+*   [Struktur Proyek](#-struktur-proyek)
+*   [Prasyarat](#-prasyarat)
+*   [Langkah-Langkah Instalasi](#-langkah-langkah-instalasi)
+    *   [Backend (Laravel API)](#backend)
+    *   [Frontend (Aplikasi Flutter)](#frontend)
+*   [Troubleshooting](#-troubleshooting)
+*   [Berkontribusi](#-berkontribusi)
+*   [Lisensi](#-lisensi)
 
+---
 
-Install dependency:
+## 📂 Struktur Proyek
 
-composer install
+```
+/eco_rangers
+├── eco-rangers-api/      # Direktori backend (Laravel API)
+├── lib/                  # Kode sumber aplikasi Flutter
+└── README.md             # File panduan yang sedang Anda baca
+```
 
+## ✅ Prasyarat
 
-Siapkan file environment:
+Pastikan semua perangkat lunak berikut telah terinstal di sistem Anda.
 
-cp .env.example .env
+| Perangkat Lunak     | Perintah Cek Versi          | Catatan                                      |
+| ------------------- | --------------------------- | -------------------------------------------- |
+| **Git**             | `git --version`             | Untuk mengkloning repositori.                |
+| **Flutter SDK**     | `flutter --version`         | Disarankan versi 3.x.x atau lebih tinggi.      |
+| **PHP**             | `php --version`             | Disarankan versi 8.1 atau lebih tinggi.      |
+| **Composer**        | `composer --version`        | Manajer dependensi untuk PHP.              |
+| **Node.js & npm**   | `node --version` `npm --version` | Untuk mengelola aset frontend Laravel. |
 
+---
 
-php artisan key:generate
+## ⚙️ Langkah-Langkah Instalasi
 
+<a name="backend"></a>
+### Backend (Laravel API)
 
+Langkah-langkah ini akan menyiapkan server API lokal Anda.
+> **💡 Kabar baik!** Database sudah disertakan dalam repositori ini, jadi Anda tidak perlu membuat atau memigrasi database secara manual.
 
-Konfigurasi Database
-Opsi A — SQLite (paling mudah untuk local)
+1.  **Masuk ke Direktori API:**
+    ```sh
+    cd eco-rangers-api
+    ```
 
-Buat file database:
-windows powershell
-New-Item -ItemType File -Path database/database.sqlite -Force
+2.  **Buat File Environment (`.env`):**
+    ```sh
+    # Untuk macOS/Linux
+    cp .env.example .env
+    
+    # Untuk Windows
+    copy .env.example .env
+    ```
 
-Edit .env:
-DB_CONNECTION=sqlite
-# DB_DATABASE= (biarkan kosong untuk sqlite)
+3.  **Instal Dependensi (PHP & Node.js):**
+    ```sh
+    composer install && npm install && npm run build
+    ```
 
-Opsi B — MySQL (jika project Anda pakai MySQL)
-Edit .env:
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=eco_rangers
-DB_USERNAME=root
-DB_PASSWORD=
+4.  **Hasilkan Kunci Aplikasi:**
+    ```sh
+    php artisan key:generate
+    ```
 
-Jalankan migrasi + seeder:
-php artisan migrate --seed
+5.  **(Opsional) Isi Database dengan Data Contoh:**
+    ```sh
+    php artisan db:seed
+    ```
 
-Jika Anda punya akun admin default dari seeder, pastikan sesuai dengan kredensial yang Anda gunakan.
-Dari info Anda:
-Admin: admin@gmail.com / 11111111
-User: rifat@gmail.com / 12345678
+6.  **Jalankan Server API:**
+    Jalankan perintah ini untuk membuat API dapat diakses dari perangkat lain di jaringan Anda.
+    ```sh
+    php artisan serve --host=0.0.0.0
+    ```
+    > Biarkan terminal ini tetap berjalan. API Anda sekarang aktif dan mendengarkan koneksi di port 8000.
 
-(Opsional) Storage link untuk akses file upload
+<a name="frontend"></a>
+### Frontend (Aplikasi Flutter)
 
-Jika fitur upload foto dipakai:
-php artisan storage:link
+Sekarang mari kita siapkan aplikasi selulernya. Buka **terminal baru** untuk langkah-langkah ini.
 
-Jalankan server Laravel:
-php artisan serve
+1.  **Instal Dependensi Flutter:**
+    (Pastikan Anda berada di direktori root `eco_rangers`)
+    ```sh
+    flutter pub get
+    ```
 
+2.  **Konfigurasi Alamat IP API:**
+    Ini adalah langkah **paling penting**. Aplikasi Flutter perlu tahu alamat server API Anda. Pilih alamat yang sesuai dengan target Anda:
 
-Secara default akan jalan di:
-http://127.0.0.1:8000
+    | Target Platform                                | Alamat API yang Digunakan                   |
+    | ---------------------------------------------- | ------------------------------------------- |
+    | **Web (Chrome)** atau **Aplikasi Desktop**     | `http://127.0.0.1:8000`                     |
+    | **Emulator Android**                           | `http://10.0.2.2:8000`                      |
+    | **Perangkat Fisik** atau **Simulator iOS**     | `http://<IP-LOKAL-ANDA>:8000`               |
 
-3) Menjalankan Frontend (Flutter) — Jika Ada
-Sesuaikan nama folder Flutter Anda. Contoh di bawah saya pakai eco_rangers (ubah jika berbeda).
+    <details>
+    <summary>❓ <strong>Bagaimana cara menemukan IP Lokal saya?</strong></summary>
+    
+    *   **Di Windows:** Buka **Command Prompt** dan ketik `ipconfig`. Cari alamat `IPv4 Address`.
+    *   **Di macOS/Linux:** Buka **Terminal** dan ketik `ifconfig` atau `ip addr`. Cari alamat `inet`.
+    
+    </details>
 
-Masuk ke folder Flutter:
-cd ../eco_rangers
+3.  **Jalankan Aplikasi Flutter:**
+    Pastikan Anda memiliki target (emulator, perangkat, atau web) yang berjalan, lalu jalankan:
+    ```sh
+    flutter run
+    ```
 
-Install dependency Flutter:
-flutter pub get
+---
 
-Konfigurasi Base URL API di .env
-Pastikan base URL API mengarah ke backend lokal:
-http://127.0.0.1:8000
+## 🚨 Troubleshooting
 
-Jika Anda menjalankan di Android emulator, gunakan:
-http://10.0.2.2:8000
+*   **"Connection refused" di Perangkat Fisik:**
+    1.  Pastikan server API berjalan dengan perintah `php artisan serve --host=0.0.0.0`.
+    2.  Pastikan ponsel dan komputer Anda terhubung ke jaringan **Wi-Fi yang sama**.
+    3.  Periksa **Firewall** di komputer Anda. Mungkin Anda perlu menambahkan aturan untuk mengizinkan koneksi masuk pada port 8000.
 
-Jalankan aplikasi:
+---
 
-flutter run
+## 🤝 Berkontribusi
 
-4) Menjalankan BDD / Testing (Jika Digunakan):
-   
-cd eco-rangers-api
+Kami sangat terbuka untuk kontribusi! Jika Anda ingin membantu, silakan *fork* repositori ini dan buat *pull request*.
 
-vendor/bin/behat
+1.  Fork repositori ini.
+2.  Buat branch baru (`git checkout -b fitur/NamaFiturAnda`).
+3.  Commit perubahan Anda (`git commit -m 'feat: Menambahkan Fitur Keren'`).
+4.  Push ke branch tersebut (`git push origin fitur/NamaFiturAnda`).
+5.  Buka Pull Request.
+
+---
+
