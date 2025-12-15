@@ -6,47 +6,53 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Report;
+use App\Models\ReportUpdate;
+use Illuminate\Support\Facades\DB;
 
 class ReportController extends Controller
 {
-    /**
-     * GET /api/reports
-     * Tampilkan semua laporan
-     */
-    public function index()
+    public function index(Request $request)
     {
-        // PERBAIKAN: Mengirim 'judul' dan 'deskripsi' agar sesuai dengan Flutter
-        $data = Report::orderByDesc('id')->get()->map(function ($r) {
-            return [
-                'id' => $r->id,
-                'judul' => $r->judul,
-                'deskripsi' => $r->deskripsi,
-                'lokasi_text' => $r->lokasi_text,
-                'lat' => $r->lat,
-                'lng' => $r->lng,
-                'status' => $r->status,
-                'foto_url' => $r->foto_path ? asset('storage/'.$r->foto_path) : null,
-                'created_at' => $r->created_at,
-            ];
+        $user = $request->user();
+        // Eager load relasi 'user' dan 'updates'
+        $query = Report::with(['user', 'updates'])->orderByDesc('id');
+
+        if ($user && $user->tokenCan('role:admin')) {
+            // Admin melihat semua laporan
+        } else {
+            // Pengguna biasa hanya melihat laporan mereka sendiri
+            $query->where('user_id', $user->id);
+        }
+
+        $reports = $query->get();
+
+        $reports->each(function ($report) {
+            $report->foto_url = $report->foto_path ? asset('storage/' . $report->foto_path) : null;
+            $report->updates->each(function ($update) {
+                $update->foto_dokumentasi_url = $update->foto_dokumentasi ? asset('storage/' . $update->foto_dokumentasi) : null;
+            });
+            // title-case the status for BDD expectations
+            $report->status = ucfirst($report->status);
         });
 
-        return response()->json($data);
+        return response()->json($reports);
     }
 
-    /**
-     * GET /api/reports/{report}
-     * Detail laporan tunggal
-     */
-    public function show(Report $report)
+    public function show(Report $report, Request $request)
     {
-        $report->foto_url = $report->foto_path ? asset('storage/'.$report->foto_path) : null;
+        $user = $request->user();
+
+        if ($user && !$user->tokenCan('role:admin') && $report->user_id !== $user->id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        // Eager load relasi 'user' dan 'updates'
+        // Eager load relasi 'user' dan 'updates'
+        $report->load(['user', 'updates']);
+        $report->status = ucfirst($report->status);
         return response()->json($report);
     }
 
-    /**
-     * POST /api/reports
-     * Buat laporan baru
-     */
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -58,11 +64,10 @@ class ReportController extends Controller
             'foto'        => ['nullable','image','mimes:jpg,jpeg,png','max:4096'],
         ]);
 
-        $path = $request->hasFile('foto')
-            ? $request->file('foto')->store('reports', 'public')
-            : null;
+        $path = $request->hasFile('foto') ? $request->file('foto')->store('reports', 'public') : null;
 
         $report = Report::create([
+            'user_id'     => $request->user()->id,
             'judul'       => $validated['judul'],
             'deskripsi'   => $validated['deskripsi'],
             'lokasi_text' => $validated['lokasi_text'] ?? null,
@@ -72,42 +77,94 @@ class ReportController extends Controller
             'status'      => 'pending',
         ]);
 
-        $report->foto_url = $path ? asset('storage/'.$path) : null;
+        // Muat relasi user setelah dibuat
+        $report->load('user');
+
+        // Normalisasi format status yang dikembalikan agar cocok dengan
+        // ekspektasi acceptance tests (title-cased)
+        $report->status = ucfirst($report->status);
 
         return response()->json(['report' => $report], 201);
     }
 
-    /**
-     * PATCH /api/reports/{report}/status
-     * Update status laporan
-     */
     public function updateStatus(Request $request, Report $report)
     {
-        $request->validate([
-            // Menambahkan 'ditolak' sebagai status yang valid
-            'status' => ['required','in:pending,diproses,selesai,ditolak'],
+        // Normalisasi input status menjadi lowercase agar validasi case-insensitive
+        if ($request->has('status')) {
+            $request->merge(['status' => strtolower($request->input('status'))]);
+        }
+
+        $validated = $request->validate([
+            'status'             => ['required', 'in:pending,diproses,selesai,ditolak'],
+            'keterangan'         => ['nullable', 'string'],
+            'nama_petugas'       => ['nullable', 'string', 'max:255'],
+            'foto_dokumentasi'   => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:4096'],
         ]);
 
-        $report->status = $request->input('status');
-        $report->save();
+        $path = null;
+        if ($request->hasFile('foto_dokumentasi')) {
+            $path = $request->file('foto_dokumentasi')->store('documentation', 'public');
+        }
 
-        $report->foto_url = $report->foto_path ? asset('storage/'.$report->foto_path) : null;
+        DB::transaction(function () use ($report, $validated, $path) {
+            $report->updates()->create([
+                'status'           => $validated['status'],
+                'keterangan'       => $validated['keterangan'] ?? null,
+                'nama_petugas'     => $validated['nama_petugas'] ?? null,
+                'foto_dokumentasi' => $path,
+            ]);
 
-        return response()->json(['report' => $report]);
+            $report->status = $validated['status'];
+            $report->save();
+        });
+
+        // Eager load relasi 'user' dan 'updates' setelah update
+        $report->load(['user', 'updates']);
+        // Normalisasi status yang ditampilkan agar sesuai ekspektasi BDD
+        $report->status = ucfirst($report->status);
+
+        return response()->json([
+            'message' => 'Status laporan berhasil diubah',
+            'report' => $report
+        ]);
     }
 
-    /**
-     * DELETE /api/reports/{report}
-     * Hapus laporan
-     */
     public function destroy(Report $report)
     {
         if ($report->foto_path) {
             Storage::disk('public')->delete($report->foto_path);
         }
 
-        $report->delete();
+        foreach ($report->updates as $update) {
+            if ($update->foto_dokumentasi) {
+                Storage::disk('public')->delete($update->foto_dokumentasi);
+            }
+        }
 
-        return response()->json(['deleted' => true]);
+        $report->delete();
+        return response()->json(['message' => 'Laporan berhasil dihapus', 'deleted' => true]);
+    }
+
+    public function clearAll(Request $request)
+    {
+        if (!$request->user() || !$request->user()->tokenCan('role:admin')) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        DB::transaction(function () {
+            // 1. Hapus semua file dari storage
+            $reportFiles = Storage::disk('public')->files('reports');
+            $documentationFiles = Storage::disk('public')->files('documentation');
+            Storage::disk('public')->delete($reportFiles);
+            Storage::disk('public')->delete($documentationFiles);
+
+            // 2. Hapus semua data dari tabel (metode yang kompatibel dengan SQLite & MySQL)
+            // Hapus dari tabel anak (child) terlebih dahulu
+            DB::table('report_updates')->delete();
+            // Baru hapus dari tabel induk (parent)
+            DB::table('reports')->delete();
+        });
+
+        return response()->json(['message' => 'Semua riwayat laporan telah berhasil dibersihkan.']);
     }
 }

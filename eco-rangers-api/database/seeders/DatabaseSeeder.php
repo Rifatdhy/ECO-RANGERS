@@ -16,7 +16,8 @@ class DatabaseSeeder extends Seeder
         // Panggil seeder untuk admin
         $this->call(AdminUserSeeder::class);
 
-        // User::factory(10)->create();
+        // AKTIFKAN: Buat 10 user biasa secara otomatis
+        User::factory(10)->create();
 
         // User::factory()->create([
         //     'name' => 'Test User',
