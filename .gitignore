@@ -5,7 +5,7 @@ build/
 *.aab
 
 # ---- Android ----
-android/.gradle/                 # cache boleh di-ignore
+android/.gradle/
 android/build/
 
 # ---- iOS ----
@@ -17,7 +17,8 @@ vendor/
 node_modules/
 public/storage/
 storage/*.key
-.env
+# .env DI-UNCOMMENT AGAR TERUPLOAD
+# .env
 .env.*.backup
 
 # ---- OS / Editor ----

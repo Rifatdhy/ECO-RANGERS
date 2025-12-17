@@ -19,14 +19,17 @@ class AuthController extends Controller
 
         $user = User::create([
             'username' => $validatedData['username'],
-            'name' => $validatedData['username'], // Mengisi kolom 'name' juga
+            'name' => $validatedData['username'],
             'email' => $validatedData['email'],
             'password' => Hash::make($validatedData['password']),
+            'is_admin' => false, // Pastikan user baru bukan admin
         ]);
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        // DIUBAH: Berikan kemampuan 'role:user' saat membuat token
+        $token = $user->createToken('auth_token', ['role:user'])->plainTextToken;
 
         return response()->json([
+            'message' => 'Registrasi berhasil',
             'token' => $token,
             'user' => $user,
         ], 201);
@@ -45,14 +48,15 @@ class AuthController extends Controller
 
         $user = User::where('email', $request->email)->firstOrFail();
 
-        // Hapus token lama & buat token baru
+        // Hapus token lama & buat token baru dengan kemampuan yang sesuai
         $user->tokens()->delete();
-        $token = $user->createToken('auth_token')->plainTextToken;
 
-        // Kembalikan token dan data user (termasuk status admin)
+        $abilities = $user->is_admin ? ['role:admin'] : ['role:user'];
+        $token = $user->createToken('auth_token', $abilities)->plainTextToken;
+
         return response()->json([
             'token' => $token,
-            'user' => $user, // is_admin akan ada di sini jika kolomnya ada
+            'user' => $user,
         ]);
     }
 

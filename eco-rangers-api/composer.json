@@ -12,7 +12,9 @@
         "laravel/tinker": "^2.10.1"
     },
     "require-dev": {
+        "behat/behat": "^3.29",
         "fakerphp/faker": "^1.23",
+        "guzzlehttp/guzzle": "^7.10",
         "laravel/dusk": "^8.3",
         "laravel/pail": "^1.2.2",
         "laravel/pint": "^1.24",

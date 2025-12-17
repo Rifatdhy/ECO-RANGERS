@@ -16,16 +16,23 @@ class ReportController extends Controller
         $user = $request->user();
         $query = Report::with(['user', 'updates'])->orderByDesc('id');
 
-        if ($user) { // <-- PERUBAHAN DI SINI
-            if ($user->tokenCan('role:admin')) {
-                // Admin melihat semua laporan (tidak ada filter tambahan)
-            } else {
-                // Pengguna biasa hanya melihat laporan mereka sendiri
+        // Fitur filter berdasarkan status
+        if ($request->has('status') && $request->input('status') !== '') {
+            $status = strtolower($request->input('status'));
+            if (in_array($status, ['pending', 'diproses', 'selesai', 'ditolak'])) {
+                $query->where('status', $status);
+            }
+        }
+
+        if ($user) {
+            // Admin dapat melihat semua laporan (dengan filter status jika ada).
+            // Pengguna biasa hanya dapat melihat laporan mereka sendiri.
+            if (!$user->tokenCan('role:admin')) {
                 $query->where('user_id', $user->id);
             }
         } else {
             // Jika tidak ada user (tamu), jangan tampilkan laporan sama sekali.
-            return response()->json([]); // <-- PERUBAHAN DI SINI
+            return response()->json([]);
         }
 
         $reports = $query->get();
@@ -38,7 +45,8 @@ class ReportController extends Controller
             $report->status = ucfirst($report->status);
         });
 
-        return response()->json($reports);
+        // Tambahkan header untuk menonaktifkan caching
+        return response()->json($reports)->header('Cache-Control', 'no-store, no-cache, must-revalidate');
     }
 
     public function show(Report $report, Request $request)

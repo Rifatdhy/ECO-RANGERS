@@ -14,9 +14,11 @@ class Kernel extends HttpKernel
      * @var array<int, class-string|string>
      */
     protected $middleware = [
+        // Pindahkan HandleCors ke paling atas untuk prioritas tertinggi
+        \Illuminate\Http\Middleware\HandleCors::class,
+
         // \Illuminate\Http\Middleware\TrustHosts::class,
         \Illuminate\Http\Middleware\TrustProxies::class,
-        \Illuminate\Http\Middleware\HandleCors::class,
         \Illuminate\Foundation\Http\Middleware\PreventRequestsDuringMaintenance::class,
         \Illuminate\Http\Middleware\ValidatePostSize::class,
         \Illuminate\Foundation\Http\Middleware\TrimStrings::class,
@@ -39,6 +41,8 @@ class Kernel extends HttpKernel
         ],
 
         'api' => [
+            // Pastikan HandleCors juga ada di grup API jika belum ada secara global
+            // Namun karena sudah ada di global, ini tidak wajib
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
             'throttle:api',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,

@@ -6,7 +6,8 @@ import 'laporan_detail_page.dart';
 import 'package:intl/intl.dart';
 
 class DaftarLaporanPage extends StatefulWidget {
-  const DaftarLaporanPage({super.key});
+  final String? status;
+  const DaftarLaporanPage({super.key, this.status});
 
   @override
   State<DaftarLaporanPage> createState() => _DaftarLaporanPageState();
@@ -24,8 +25,16 @@ class _DaftarLaporanPageState extends State<DaftarLaporanPage> {
 
   void _loadReports() {
     setState(() {
-      _reportsFuture = _apiClient.fetchReportsAsModel();
+      _reportsFuture = _apiClient.fetchReportsAsModel(status: widget.status);
     });
+  }
+
+  String _getPageTitle() {
+    final status = widget.status;
+    if (status == null || status.isEmpty || status.toLowerCase() == 'semua') {
+      return 'Semua Laporan';
+    }
+    return 'Laporan ${status[0].toUpperCase()}${status.substring(1).toLowerCase()}';
   }
 
   void _navigateToDetail(Laporan laporan) async {
@@ -61,7 +70,7 @@ class _DaftarLaporanPageState extends State<DaftarLaporanPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Daftar Laporan'),
+        title: Text(_getPageTitle()),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -87,7 +96,24 @@ class _DaftarLaporanPageState extends State<DaftarLaporanPage> {
             }
             final data = snap.data ?? [];
             if (data.isEmpty) {
-              return const Center(child: Text('Belum ada laporan untuk ditampilkan.'));
+              return const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.folder_off_outlined, size: 80, color: Colors.grey),
+                    SizedBox(height: 16),
+                    Text(
+                      'Tidak Ada Laporan',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Tidak ada laporan yang cocok dengan filter Anda.',
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              );
             }
 
             return ListView.builder(

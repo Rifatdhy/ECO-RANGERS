@@ -1,1 +1,4 @@
-*.sqlite*
+# MENGIZINKAN SEMUA FILE DATABASE TERUPLOAD
+# *.sqlite-journal
+# *.sqlite-wal
+# *.sqlite-shm

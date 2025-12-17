@@ -32,8 +32,7 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
 
   void _loadReports() {
     setState(() {
-      _reportsFuture = locator<ApiClient>().fetchReportsAsModel();
-      _clearFilters();
+      _reportsFuture = locator<ApiClient>().fetchReportsAsModel(status: _selectedStatus);
     });
   }
   
@@ -41,6 +40,7 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
     setState(() {
       _selectedDate = null;
       _selectedStatus = null;
+      _loadReports(); // Muat ulang dari API dengan filter bersih
     });
   }
 
@@ -52,12 +52,18 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
       lastDate: DateTime.now(),
     );
     if (picked != null) {
-      setState(() => _selectedDate = picked);
+      setState(() {
+        _selectedDate = picked;
+        // Catatan: filter tanggal tetap di sisi klien karena API belum mendukungnya.
+      });
     }
   }
   
   void _selectStatus(String? status) {
-    setState(() => _selectedStatus = status);
+    setState(() {
+      _selectedStatus = status;
+      _loadReports(); // Panggil API lagi dengan status yang baru
+    });
   }
 
   void _navigateToDetail(Laporan laporan) async {
@@ -71,14 +77,9 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
   }
 
   String _buildAppBarTitle() {
-    if (_selectedStatus != null && _selectedDate != null) {
-      return '${_selectedStatus![0].toUpperCase()}${_selectedStatus!.substring(1)} | ${DateFormat('dd MMM yyyy').format(_selectedDate!)}';
-    }
     if (_selectedStatus != null) {
-      return 'Laporan ${_selectedStatus![0].toUpperCase()}${_selectedStatus!.substring(1)}';
-    }
-    if (_selectedDate != null) {
-      return DateFormat('dd MMM yyyy').format(_selectedDate!);
+       final statusText = _selectedStatus![0].toUpperCase() + _selectedStatus!.substring(1);
+       return 'Laporan $statusText';
     }
     return "Semua Laporan";
   }
@@ -129,20 +130,22 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
             return Center(child: Text("Gagal memuat data: ${snapshot.error}"));
           }
           
-          final allReports = snapshot.data ?? [];
+          final reportsFromApi = snapshot.data ?? [];
           
-          final filteredReports = allReports.where((report) {
-            final isDateMatch = _selectedDate == null || DateUtils.isSameDay(report.createdAt, _selectedDate!);
-            final isStatusMatch = _selectedStatus == null || report.status == _selectedStatus;
-            return isDateMatch && isStatusMatch;
+          // Filter status sekarang ditangani oleh API.
+          // Hanya filter tanggal yang dilakukan di sisi klien.
+          final filteredReports = reportsFromApi.where((report) {
+            return _selectedDate == null || DateUtils.isSameDay(report.createdAt, _selectedDate!);
           }).toList();
 
-          if (allReports.isEmpty) {
-            return _buildEmptyState('Belum ada laporan masuk.', 'Sistem belum menerima laporan apa pun.');
-          }
-          if (filteredReports.isEmpty) {
+          if (reportsFromApi.isEmpty) {
             return _buildEmptyState('Tidak Ada Laporan', 'Tidak ada laporan yang cocok dengan filter Anda.');
           }
+
+          if (filteredReports.isEmpty && _selectedDate != null) {
+            return _buildEmptyState('Tidak Ada Laporan', 'Tidak ada laporan untuk tanggal yang dipilih.');
+          }
+          
           return _buildGroupedReportList(filteredReports);
         },
       ),

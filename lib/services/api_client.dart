@@ -7,10 +7,18 @@ import '../models/laporan.dart';
 import 'auth_service.dart';
 
 class ApiClient {
-  Future<List<dynamic>> getReports() async {
+  Future<List<dynamic>> getReports({String? status}) async {
     final t = await AuthService.instance.getToken();
+
+    var path = '/api/reports';
+    // Cek jika status tidak null, tidak kosong, dan bukan 'semua'
+    if (status != null && status.isNotEmpty && status.toLowerCase() != 'semua') {
+      // Pastikan status dikirim dalam huruf kecil (lowercase)
+      path += '?status=${status.toLowerCase()}';
+    }
+
     final res = await http.get(
-      api('/api/reports'),
+      api(path),
       headers: {
         'Accept': 'application/json',
         if (t != null) 'Authorization': 'Bearer $t',
@@ -60,8 +68,8 @@ class ApiClient {
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
-  Future<List<Laporan>> fetchReportsAsModel() async {
-    final list = await getReports();
+  Future<List<Laporan>> fetchReportsAsModel({String? status}) async {
+    final list = await getReports(status: status);
     return list.map<Laporan>((e) => Laporan.fromJson(e as Map<String, dynamic>)).toList();
   }
 
