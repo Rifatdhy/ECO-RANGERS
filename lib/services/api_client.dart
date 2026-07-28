@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
@@ -6,26 +7,75 @@ import '../config.dart';
 import '../models/laporan.dart';
 import 'auth_service.dart';
 
+class ApiException implements Exception {
+  final String message;
+  final int? statusCode;
+  final dynamic data;
+  ApiException({required this.message, this.statusCode, this.data});
+  @override
+  String toString() => 'ApiException($statusCode): $message';
+}
+
+class NetworkException implements Exception {
+  final String message;
+  NetworkException({required this.message});
+  @override
+  String toString() => 'NetworkException: $message';
+}
+
 class ApiClient {
+  static const Duration _timeout = Duration(seconds: 15);
+  static const int _maxRetries = 2;
+
+  http.Client? _httpClient;
+  set httpClient(http.Client? client) => _httpClient = client;
+
+  Future<http.Response> _request(
+    String method,
+    Uri uri, {
+    Map<String, String>? headers,
+    dynamic body,
+  }) async {
+    for (int attempt = 0; attempt <= _maxRetries; attempt++) {
+      try {
+        final client = _httpClient ?? http.Client();
+        final req = http.Request(method, uri)
+          ..headers.addAll(headers ?? {})
+          ..body = body ?? '';
+        final res = await client.send(req).timeout(_timeout);
+        return await http.Response.fromStream(res);
+      } on http.ClientException {
+        if (attempt == _maxRetries) rethrow;
+        await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
+      } on TimeoutException {
+        if (attempt == _maxRetries) throw NetworkException(message: 'Permintaan timeout setelah ${_timeout.inSeconds} detik');
+        await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
+      }
+    }
+    throw NetworkException(message: 'Permintaan gagal setelah $_maxRetries percobaan');
+  }
+
+  String _authHeader(String? token) {
+    if (token == null || token.isEmpty) return '';
+    return 'Bearer $token';
+  }
+
   Future<List<dynamic>> getReports({String? status}) async {
     final t = await AuthService.instance.getToken();
 
     var path = '/api/reports';
-    // Cek jika status tidak null, tidak kosong, dan bukan 'semua'
     if (status != null && status.isNotEmpty && status.toLowerCase() != 'semua') {
-      // Pastikan status dikirim dalam huruf kecil (lowercase)
       path += '?status=${status.toLowerCase()}';
     }
 
-    final res = await http.get(
-      api(path),
-      headers: {
-        'Accept': 'application/json',
-        if (t != null) 'Authorization': 'Bearer $t',
-      },
-    );
+    final headers = {
+      'Accept': 'application/json',
+      if (t != null && t.isNotEmpty) 'Authorization': 'Bearer $t',
+    };
+
+    final res = await _request('GET', api(path), headers: headers);
     if (res.statusCode != 200) {
-      throw Exception('GET /api/reports gagal: ${res.statusCode} ${res.body}');
+      throw ApiException(message: 'Gagal memuat laporan', statusCode: res.statusCode, data: res.body);
     }
     return jsonDecode(res.body) as List;
   }
@@ -38,10 +88,10 @@ class ApiClient {
     String? lokasiText,
     XFile? imageFile,
   }) async {
+    final t = await AuthService.instance.getToken();
     final req = http.MultipartRequest('POST', api('/api/reports'))
       ..headers['Accept'] = 'application/json'
-      ..headers['Authorization'] =
-          'Bearer ' + ((await AuthService.instance.getToken()) ?? '')
+      ..headers['Authorization'] = _authHeader(t)
       ..fields.addAll({
         'judul': judul,
         'deskripsi': deskripsi,
@@ -59,11 +109,10 @@ class ApiClient {
       }
     }
 
-    final sent = await req.send();
+    final sent = await req.send().timeout(_timeout);
     final res = await http.Response.fromStream(sent);
-
     if (res.statusCode != 201 && res.statusCode != 200) {
-      throw Exception('POST /api/reports gagal: ${res.statusCode} ${res.body}');
+      throw ApiException(message: 'Gagal membuat laporan', statusCode: res.statusCode, data: res.body);
     }
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
@@ -83,16 +132,12 @@ class ApiClient {
     final t = await AuthService.instance.getToken();
     final req = http.MultipartRequest('POST', api('/api/reports/$id/status'))
       ..headers['Accept'] = 'application/json'
-      ..headers['Authorization'] = 'Bearer ${t ?? ''}';
+      ..headers['Authorization'] = _authHeader(t);
 
     req.fields['status'] = status.toLowerCase();
-    if (namaPetugas != null) {
-      req.fields['nama_petugas'] = namaPetugas;
-    }
-    if (keterangan != null) {
-      req.fields['keterangan'] = keterangan;
-    }
-    
+    if (namaPetugas != null) req.fields['nama_petugas'] = namaPetugas;
+    if (keterangan != null) req.fields['keterangan'] = keterangan;
+
     if (documentationImage != null) {
       if (kIsWeb) {
         final bytes = await documentationImage.readAsBytes();
@@ -102,43 +147,42 @@ class ApiClient {
       }
     }
 
-    final sent = await req.send();
+    final sent = await req.send().timeout(_timeout);
     final res = await http.Response.fromStream(sent);
-
     if (res.statusCode != 200) {
-      throw Exception('POST update status gagal: ${res.statusCode} ${res.body}');
+      throw ApiException(message: 'Gagal memperbarui status', statusCode: res.statusCode, data: res.body);
     }
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
   Future<void> deleteReport(int id) async {
     final t = await AuthService.instance.getToken();
-    final res = await http.delete(
+    final res = await _request(
+      'DELETE',
       api('/api/reports/$id'),
       headers: {
         'Accept': 'application/json',
-        if (t != null) 'Authorization': 'Bearer $t',
+        if (t != null && t.isNotEmpty) 'Authorization': 'Bearer $t',
       },
     );
     if (res.statusCode != 200) {
-      throw Exception('DELETE gagal: ${res.statusCode} ${res.body}');
+      throw ApiException(message: 'Gagal menghapus laporan', statusCode: res.statusCode, data: res.body);
     }
   }
 
   Future<String> clearAllReports() async {
     final t = await AuthService.instance.getToken();
-    final res = await http.post(
+    final res = await _request(
+      'POST',
       api('/api/admin/clear-all-reports'),
       headers: {
         'Accept': 'application/json',
-        'Authorization': 'Bearer ${t ?? ''}',
+        if (t != null && t.isNotEmpty) 'Authorization': 'Bearer $t',
       },
     );
-
     if (res.statusCode != 200) {
-      throw Exception('Gagal membersihkan laporan: ${res.statusCode} ${res.body}');
+      throw ApiException(message: 'Gagal membersihkan laporan', statusCode: res.statusCode, data: res.body);
     }
-
     final data = jsonDecode(res.body) as Map<String, dynamic>;
     return data['message'] ?? 'Proses selesai.';
   }
