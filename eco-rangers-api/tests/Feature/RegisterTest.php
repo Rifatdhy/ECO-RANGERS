@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use Tests\TestCase;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class RegisterTest extends TestCase
 {
@@ -42,6 +42,6 @@ class RegisterTest extends TestCase
         ];
 
         $response = $this->postJson('/api/register', $data);
-        $response->assertStatus(422);
+        $response->assertStatus(422)->assertInvalid('email');
     }
 }
