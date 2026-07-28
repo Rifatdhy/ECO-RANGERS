@@ -160,6 +160,9 @@ class FeatureContext implements Context
     /** @Given I am on the register page */
     public function iAmOnTheRegisterPage() { /* no-op */ }
 
+    /** @Given I am on the :page page */
+    public function iAmOnThePage($page) { /* no-op for API testing */ }
+
 
     /** @When I navigate to :page */
     public function iNavigateTo($page) { /* no-op */ }
