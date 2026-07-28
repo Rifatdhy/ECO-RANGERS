@@ -25,6 +25,7 @@ class ReportListTest extends TestCase
         $response->assertJsonStructure([
             'data' => [['id', 'judul', 'deskripsi', 'status']]
         ]);
+        $response->assertJsonCount(3, 'data');
     }
 
     /** @test */

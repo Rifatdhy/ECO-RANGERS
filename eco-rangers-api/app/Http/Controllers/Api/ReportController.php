@@ -16,7 +16,6 @@ class ReportController extends Controller
         $user = $request->user();
         $query = Report::with(['user', 'updates'])->orderByDesc('id');
 
-        // Fitur filter berdasarkan status
         if ($request->has('status') && $request->input('status') !== '') {
             $status = strtolower($request->input('status'));
             if (in_array($status, ['pending', 'diproses', 'selesai', 'ditolak'])) {
@@ -25,19 +24,18 @@ class ReportController extends Controller
         }
 
         if ($user) {
-            // Admin dapat melihat semua laporan (dengan filter status jika ada).
-            // Pengguna biasa hanya dapat melihat laporan mereka sendiri.
             if (!$user->tokenCan('role:admin')) {
                 $query->where('user_id', $user->id);
             }
         } else {
-            // Jika tidak ada user (tamu), jangan tampilkan laporan sama sekali.
             return response()->json([]);
         }
 
-        $reports = $query->get();
+        $perPage = min((int)($request->query('per_page') ?? 20), 100);
+        $page = (int)($request->query('page') ?? 1);
+        $reports = $query->paginate($perPage, ['*'], 'page', $page);
 
-        $reports->each(function ($report) {
+        $reports->getCollection()->each(function ($report) {
             $report->foto_url = $report->foto_path ? asset('storage/' . $report->foto_path) : null;
             $report->updates->each(function ($update) {
                 $update->foto_dokumentasi_url = $update->foto_dokumentasi ? asset('storage/' . $update->foto_dokumentasi) : null;
@@ -45,8 +43,8 @@ class ReportController extends Controller
             $report->status = ucfirst($report->status);
         });
 
-        // Tambahkan header untuk menonaktifkan caching
-        return response()->json($reports)->header('Cache-Control', 'no-store, no-cache, must-revalidate');
+        return response()->json($reports)
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate');
     }
 
     public function show(Report $report, Request $request)
