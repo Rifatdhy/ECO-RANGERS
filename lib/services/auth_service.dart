@@ -15,13 +15,16 @@ class AuthService {
   User? _currentUser;
   User? get currentUser => _currentUser;
 
-  // FIX: Mengembalikan implementasi fungsi register
+  http.Client? _httpClient;
+  set httpClient(http.Client? client) => _httpClient = client;
+  http.Client get _client => _httpClient ?? http.Client();
+
   Future<Map<String, dynamic>> register({
     required String username,
     required String email,
     required String password,
   }) async {
-    final res = await http.post(
+    final res = await _client.post(
       api('/api/register'),
       headers: {
         'Content-Type': 'application/json',
@@ -48,7 +51,7 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    final res = await http.post(
+    final res = await _client.post(
       api('/api/login'),
       headers: {
         'Content-Type': 'application/json',
@@ -74,7 +77,7 @@ class AuthService {
     if (_currentUser != null) return _currentUser;
 
     try {
-      final res = await http.get(
+      final res = await _client.get(
         api('/api/me'),
         headers: {'Accept': 'application/json', 'Authorization': 'Bearer $t'},
       );
@@ -92,7 +95,7 @@ class AuthService {
     final t = await getToken();
     if (t != null) {
       try {
-        await http.post(
+        await _client.post(
           api('/api/logout'),
           headers: {'Accept': 'application/json', 'Authorization': 'Bearer $t'},
         );
