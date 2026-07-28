@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
-import 'package:intl/intl.dart';
-import 'package:shimmer/shimmer.dart';
-import 'package:collection/collection.dart'; // Import untuk groupBy
 
+import '../locator.dart';
 import '../models/laporan.dart';
+import '../models/user.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
-import 'laporan_detail_page.dart';
-import 'auth_page.dart';
-import '../locator.dart';
 import '../ui/app_theme.dart';
+import 'auth_page.dart';
+import 'detail_laporan_admin_page.dart';
 
 class DashboardAdminPage extends StatefulWidget {
   const DashboardAdminPage({super.key});
@@ -20,302 +17,427 @@ class DashboardAdminPage extends StatefulWidget {
 }
 
 class _DashboardAdminPageState extends State<DashboardAdminPage> {
-  Future<List<Laporan>>? _reportsFuture;
-  DateTime? _selectedDate;
-  String? _selectedStatus;
+  final ApiClient _apiClient = locator<ApiClient>();
+  User? _user;
+  List<Laporan> _reports = [];
+  bool _isLoading = true;
+  String _selectedFilter = 'Semua';
+  final List<String> _filterOptions = ['Semua', 'Pending', 'Diproses', 'Selesai', 'Ditolak'];
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
-    _loadReports();
+    _loadData();
   }
 
-  void _loadReports() {
-    setState(() {
-      _reportsFuture = locator<ApiClient>().fetchReportsAsModel(status: _selectedStatus);
-    });
-  }
-  
-  void _clearFilters() {
-    setState(() {
-      _selectedDate = null;
-      _selectedStatus = null;
-      _loadReports(); // Muat ulang dari API dengan filter bersih
-    });
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    try {
+      _user = await locator<AuthService>().getMe();
+      _reports = await _apiClient.fetchReportsAsModel(status: _selectedFilter);
+      if (mounted) setState(() {});
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memuat data: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
+  Future<void> _logout() async {
+    await locator<AuthService>().logout();
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const AuthPage()),
+        (route) => false,
+      );
+    }
+  }
+
+  Future<void> _refreshData() async {
+    await _loadData();
+  }
+
+  void _showFilterBottomSheet() {
+    showModalBottomSheet(
       context: context,
-      initialDate: _selectedDate ?? DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Filter status',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Pilih kategori yang ingin ditampilkan.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+              ),
+              const SizedBox(height: 16),
+              ..._filterOptions.map((filter) {
+                final selected = _selectedFilter == filter;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Material(
+                    color: selected ? AppTheme.primaryColor.withValues(alpha: 0.08) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(18),
+                    child: ListTile(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                      title: Text(
+                        filter,
+                        style: TextStyle(
+                          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                          color: selected ? AppTheme.primaryColor : null,
+                        ),
+                      ),
+                      trailing: selected
+                          ? const Icon(Icons.check_circle, color: AppTheme.primaryColor)
+                          : const Icon(Icons.chevron_right),
+                      onTap: () {
+                        setState(() => _selectedFilter = filter);
+                        Navigator.pop(context);
+                        _loadData();
+                      },
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+      },
     );
-    if (picked != null) {
-      setState(() {
-        _selectedDate = picked;
-        // Catatan: filter tanggal tetap di sisi klien karena API belum mendukungnya.
-      });
-    }
-  }
-  
-  void _selectStatus(String? status) {
-    setState(() {
-      _selectedStatus = status;
-      _loadReports(); // Panggil API lagi dengan status yang baru
-    });
   }
 
-  void _navigateToDetail(Laporan laporan) async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => LaporanDetailPage(laporan: laporan)),
-    );
-    if (result == true) {
-      _loadReports();
-    }
-  }
-
-  String _buildAppBarTitle() {
-    if (_selectedStatus != null) {
-       final statusText = _selectedStatus![0].toUpperCase() + _selectedStatus!.substring(1);
-       return 'Laporan $statusText';
-    }
-    return "Semua Laporan";
+  List<Laporan> get _filteredReports {
+    if (_searchQuery.isEmpty) return _reports;
+    return _reports.where((report) {
+      return report.judul.toLowerCase().contains(_searchQuery) ||
+          report.deskripsi.toLowerCase().contains(_searchQuery);
+    }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final filtered = _filteredReports;
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_buildAppBarTitle()),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadReports,
-          ),
-          if (_selectedDate != null || _selectedStatus != null)
-            IconButton(
-              icon: const Icon(Icons.clear),
-              tooltip: 'Hapus Semua Filter',
-              onPressed: _clearFilters,
-            ),
-          _buildStatusFilterMenu(),
-          IconButton(
-            icon: const Icon(Icons.calendar_today_outlined),
-            tooltip: 'Filter Tanggal',
-            onPressed: () => _selectDate(context),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout_outlined),
-            tooltip: 'Logout',
-            onPressed: () async {
-              await locator<AuthService>().logout();
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const AuthPage()),
-                (route) => false,
-              );
-            },
-          ),
-        ],
-      ),
-      body: FutureBuilder<List<Laporan>>(
-        future: _reportsFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return _buildShimmerList();
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text("Gagal memuat data: ${snapshot.error}"));
-          }
-          
-          final reportsFromApi = snapshot.data ?? [];
-          
-          // Filter status sekarang ditangani oleh API.
-          // Hanya filter tanggal yang dilakukan di sisi klien.
-          final filteredReports = reportsFromApi.where((report) {
-            return _selectedDate == null || DateUtils.isSameDay(report.createdAt, _selectedDate!);
-          }).toList();
-
-          if (reportsFromApi.isEmpty) {
-            return _buildEmptyState('Tidak Ada Laporan', 'Tidak ada laporan yang cocok dengan filter Anda.');
-          }
-
-          if (filteredReports.isEmpty && _selectedDate != null) {
-            return _buildEmptyState('Tidak Ada Laporan', 'Tidak ada laporan untuk tanggal yang dipilih.');
-          }
-          
-          return _buildGroupedReportList(filteredReports);
-        },
-      ),
-    );
-  }
-
-  Widget _buildGroupedReportList(List<Laporan> reports) {
-    final groupedReports = groupBy(reports, (Laporan report) => DateUtils.dateOnly(report.createdAt));
-
-    return AnimationLimiter(
-      child: RefreshIndicator(
-        onRefresh: () async => _loadReports(),
-        child: ListView.builder(
-          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-          itemCount: groupedReports.keys.length,
-          itemBuilder: (context, index) {
-            final date = groupedReports.keys.elementAt(index);
-            final reportsForDate = groupedReports[date]!;
-            
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 16.0, bottom: 8.0, left: 4.0),
-                  child: Text(_formatGroupDate(date), style: Theme.of(context).textTheme.titleLarge),
+      body: RefreshIndicator(
+        onRefresh: _refreshData,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverAppBar(
+              pinned: true,
+              floating: false,
+              expandedHeight: 190,
+              backgroundColor: theme.colorScheme.surface,
+              surfaceTintColor: theme.colorScheme.surface,
+              title: const Text('Dashboard Admin'),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.logout_rounded),
+                  tooltip: 'Keluar',
+                  onPressed: _logout,
                 ),
-                ...reportsForDate.map((report) {
-                   final reportIndex = reports.indexOf(report);
-                   return AnimationConfiguration.staggeredList(
-                      position: reportIndex,
-                      duration: const Duration(milliseconds: 375),
-                      child: SlideAnimation(
-                        verticalOffset: 50.0,
-                        child: FadeInAnimation(
-                          child: _buildReportCard(report, Theme.of(context).textTheme),
+              ],
+              flexibleSpace: FlexibleSpaceBar(
+                background: _isLoading
+                    ? const SizedBox.shrink()
+                    : Container(
+                        padding: const EdgeInsets.fromLTRB(20, 72, 20, 20),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              const Color(0xFF14532D).withValues(alpha: 0.14),
+                              const Color(0xFFF6FDF8),
+                            ],
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Text(
+                              'Halo, Admin ${_user?.username ?? _user?.name ?? ''}',
+                              style: theme.textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Tinjau laporan masuk, cek status, dan arahkan tindak lanjut dengan cepat.',
+                              style: theme.textTheme.bodyMedium?.copyWith(color: Colors.black54),
+                            ),
+                          ],
                         ),
                       ),
-                   );
-                }).toList(),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  String _formatGroupDate(DateTime date) {
-    final now = DateTime.now();
-    final today = DateUtils.dateOnly(now);
-    final yesterday = DateUtils.addDaysToDate(today, -1);
-
-    if (date == today) return 'Hari Ini';
-    if (date == yesterday) return 'Kemarin';
-    return DateFormat('EEEE, dd MMMM yyyy', 'id_ID').format(date);
-  }
-  
-  Widget _buildShimmerList() {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey[300]!,
-      highlightColor: Colors.grey[100]!,
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-        itemCount: 6,
-        itemBuilder: (context, index) {
-          return Card(
-            margin: const EdgeInsets.symmetric(vertical: 8),
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Row(
-                children: [
-                  Container(width: 70, height: 70, color: Colors.white),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(width: double.infinity, height: 16.0, color: Colors.white),
-                        const SizedBox(height: 8),
-                        Container(width: 100.0, height: 12.0, color: Colors.white),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Container(width: 80, height: 30, color: Colors.white),
-                ],
               ),
             ),
-          );
-        },
-      ),
-    );
-  }
-
-  PopupMenuButton<String> _buildStatusFilterMenu() {
-    return PopupMenuButton<String>(
-      onSelected: _selectStatus,
-      icon: const Icon(Icons.filter_list),
-      tooltip: 'Filter Status',
-      itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-        const PopupMenuItem<String>(value: 'pending', child: Text('Pending')),
-        const PopupMenuItem<String>(value: 'diproses', child: Text('Diproses')),
-        const PopupMenuItem<String>(value: 'selesai', child: Text('Selesai')),
-        const PopupMenuItem<String>(value: 'ditolak', child: Text('Ditolak')),
-      ],
-    );
-  }
-
-  Widget _buildEmptyState(String title, String message) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.all_inbox_outlined, size: 80, color: theme.textTheme.bodyMedium?.color),
-            const SizedBox(height: 16),
-            Text(title, style: theme.textTheme.titleLarge, textAlign: TextAlign.center),
-            const SizedBox(height: 8),
-            Text(message, style: theme.textTheme.bodyMedium, textAlign: TextAlign.center),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
+                child: _isLoading
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.only(top: 80),
+                          child: CircularProgressIndicator(),
+                        ),
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _StatTile(
+                                  label: 'Total laporan',
+                                  value: '${_reports.length}',
+                                  icon: Icons.fact_check_outlined,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _StatTile(
+                                  label: 'Status aktif',
+                                  value: _selectedFilter,
+                                  icon: Icons.filter_alt_outlined,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          TextField(
+                            decoration: InputDecoration(
+                              hintText: 'Cari laporan berdasarkan judul atau deskripsi',
+                              prefixIcon: const Icon(Icons.search),
+                              suffixIcon: IconButton(
+                                icon: const Icon(Icons.tune_rounded),
+                                tooltip: 'Filter status',
+                                onPressed: _showFilterBottomSheet,
+                              ),
+                            ),
+                            onChanged: (value) => setState(() => _searchQuery = value.toLowerCase()),
+                          ),
+                          const SizedBox(height: 14),
+                          SizedBox(
+                            height: 42,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemBuilder: (context, index) {
+                                final option = _filterOptions[index];
+                                final selected = option == _selectedFilter;
+                                return ChoiceChip(
+                                  label: Text(option),
+                                  selected: selected,
+                                  onSelected: (_) {
+                                    setState(() => _selectedFilter = option);
+                                    _loadData();
+                                  },
+                                  selectedColor: AppTheme.primaryColor.withValues(alpha: 0.14),
+                                  labelStyle: TextStyle(
+                                    color: selected ? AppTheme.primaryColor : null,
+                                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                                  ),
+                                  side: BorderSide(
+                                    color: selected ? AppTheme.primaryColor : Colors.black12,
+                                  ),
+                                );
+                              },
+                              separatorBuilder: (_, __) => const SizedBox(width: 8),
+                              itemCount: _filterOptions.length,
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+              sliver: _isLoading
+                  ? const SliverToBoxAdapter(child: SizedBox.shrink())
+                  : filtered.isEmpty
+                      ? SliverToBoxAdapter(child: _buildEmptyState())
+                      : SliverList.separated(
+                          itemBuilder: (context, index) => _buildReportCard(filtered[index]),
+                          separatorBuilder: (_, __) => const SizedBox(height: 14),
+                          itemCount: filtered.length,
+                        ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildReportCard(Laporan laporan, TextTheme textTheme) {
-    final statusInfo = _getStatusInfo(laporan.status);
+  Widget _buildEmptyState() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 56),
+      child: Center(
+        child: Column(
+          children: [
+            Container(
+              height: 96,
+              width: 96,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.inbox_outlined, size: 44, color: AppTheme.primaryColor.withValues(alpha: 0.85)),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              'Belum ada laporan yang cocok',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _searchQuery.isNotEmpty
+                  ? 'Coba ubah kata kunci atau filter status.'
+                  : 'Laporan baru akan muncul di sini.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
+  Widget _buildReportCard(Laporan report) {
     return Card(
-      clipBehavior: Clip.antiAlias,
-      margin: const EdgeInsets.symmetric(vertical: 8),
       child: InkWell(
-        onTap: () => _navigateToDetail(laporan),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => DetailLaporanAdminPage(
+                laporan: report,
+                onUpdate: (_, __) {},
+              ),
+            ),
+          ).then((_) => _loadData());
+        },
+        borderRadius: BorderRadius.circular(24),
         child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Row(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: laporan.fotoUrl != null
-                    ? Image.network(
-                        laporan.fotoUrl!,
-                        width: 70, height: 70, fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _buildPlaceholderImage(),
-                      )
-                    : _buildPlaceholderImage(),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(laporan.judul, style: textTheme.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 4),
-                    Text(
-                      DateFormat('dd MMMM yyyy').format(laporan.createdAt),
-                      style: textTheme.bodySmall,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    height: 48,
+                    width: 48,
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(report.status).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                  ],
+                      child: Icon(
+                        report.status.toLowerCase() == 'selesai'
+                            ? Icons.verified_rounded
+                            : Icons.report_problem_outlined,
+                        color: _getStatusColor(report.status),
+                      ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                report.judul,
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: -0.2,
+                                    ),
+                              ),
+                            ),
+                            if (report.status.toLowerCase() == 'selesai') ...[
+                              const SizedBox(width: 8),
+                              const Icon(Icons.verified, color: Colors.blue, size: 20),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          report.deskripsi,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.45),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Chip(
+                    label: Text(report.status),
+                    labelStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                    backgroundColor: _getStatusColor(report.status),
+                    side: BorderSide.none,
+                  ),
+                  const Spacer(),
+                    Text(
+                      report.createdAtLabel,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54),
+                    ),
+                ],
+              ),
+              if (report.status.toLowerCase() != 'selesai' && report.fotoUrl != null && report.fotoUrl!.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.orange.withValues(alpha: 0.16)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning_amber_rounded, color: Colors.orange.shade800, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Laporan ini menunggu verifikasi.',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Colors.orange.shade900,
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Chip(
-                avatar: Icon(statusInfo.icon, color: Colors.white, size: 16),
-                label: Text(statusInfo.text),
-                backgroundColor: statusInfo.color,
-                labelStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-              ),
+              ],
             ],
           ),
         ),
@@ -323,29 +445,74 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
     );
   }
 
-  Widget _buildPlaceholderImage() {
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return Colors.orange;
+      case 'diproses':
+        return AppTheme.primaryColor;
+      case 'selesai':
+        return Colors.green;
+      case 'ditolak':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  const _StatTile({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      width: 70, height: 70,
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant,
-        borderRadius: BorderRadius.circular(8.0),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.black12),
       ),
-      child: Center(
-        child: Icon(Icons.image_not_supported_outlined, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 30),
+      child: Row(
+        children: [
+          Container(
+            height: 42,
+            width: 42,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: AppTheme.primaryColor),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
-  }
-
-  ({Color color, IconData icon, String text}) _getStatusInfo(String status) {
-    switch (status.toLowerCase()) {
-      case 'selesai':
-        return (color: Colors.green, icon: Icons.check_circle, text: 'Selesai');
-      case 'diproses':
-        return (color: Colors.purple, icon: Icons.hourglass_bottom, text: 'Diproses');
-      case 'ditolak':
-        return (color: Colors.red, icon: Icons.cancel, text: 'Ditolak');
-      default: // pending
-        return (color: Colors.orange, icon: Icons.inbox, text: 'Pending');
-    }
   }
 }

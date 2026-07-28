@@ -1,13 +1,16 @@
 import 'dart:convert';
+
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config.dart';
 import '../models/user.dart';
 
 class AuthService {
   AuthService._();
   static final AuthService instance = AuthService._();
-  final FlutterSecureStorage _storage = const FlutterSecureStorage();
+
+  static const _tokenKey = 'token';
+  static const _userKey = 'current_user';
 
   User? _currentUser;
   User? get currentUser => _currentUser;
@@ -32,7 +35,9 @@ class AuthService {
     );
     final data = _decode(res.body);
     if (res.statusCode >= 200 && res.statusCode < 300) {
-      await _storage.write(key: 'token', value: data['token']);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_tokenKey, data['token'] ?? '');
+      await prefs.setString(_userKey, jsonEncode(data['user']));
       _currentUser = User.fromJson(data['user']);
       return data;
     }
@@ -53,7 +58,9 @@ class AuthService {
     );
     final data = _decode(res.body);
     if (res.statusCode >= 200 && res.statusCode < 300) {
-      await _storage.write(key: 'token', value: data['token']);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_tokenKey, data['token'] ?? '');
+      await prefs.setString(_userKey, jsonEncode(data['user']));
       _currentUser = User.fromJson(data['user']);
       return _currentUser!;
     }
@@ -93,11 +100,16 @@ class AuthService {
         // Abaikan error
       }
     }
-    await _storage.delete(key: 'token');
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_tokenKey);
+    await prefs.remove(_userKey);
     _currentUser = null;
   }
 
-  Future<String?> getToken() => _storage.read(key: 'token');
+  Future<String?> getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_tokenKey);
+  }
 }
 
 Map<String, dynamic> _decode(String body) {

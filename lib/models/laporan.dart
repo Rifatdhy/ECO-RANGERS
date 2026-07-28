@@ -1,23 +1,7 @@
 import 'package:eco_rangers/models/report_update.dart';
+import 'package:eco_rangers/models/user.dart';
+
 import '../config.dart';
-
-// Model sederhana untuk merepresentasikan data pengguna
-class User {
-  final int id;
-  final String nama;
-  final String email;
-
-  User({required this.id, required this.nama, required this.email});
-
-  factory User.fromJson(Map<String, dynamic> json) {
-    return User(
-      id: json['id'] as int,
-      nama: json['name'] as String,
-      email: json['email'] as String,
-    );
-  }
-}
-
 
 class Laporan {
   final int id;
@@ -30,9 +14,7 @@ class Laporan {
   final String? fotoUrl;
   String status; // Status terakhir, bisa diupdate
   final DateTime createdAt;
-  final User? user; // Tambahkan properti user
-
-  // DIUBAH: Gunakan List dari ReportUpdate
+  final User? user;
   final List<ReportUpdate> updates;
 
   Laporan({
@@ -82,9 +64,19 @@ class Laporan {
       fotoPath: fotoPath,
       fotoUrl: fotoPath != null ? imageUrlFrom({'foto_path': fotoPath}) : null,
       status: json['status'] as String? ?? 'pending',
-      createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ?? DateTime.now(),
       updates: updatesList,
       user: user,
     );
+  }
+
+  String get createdAtLabel {
+    final d = createdAt;
+    final day = d.day.toString().padLeft(2, '0');
+    final month = d.month.toString().padLeft(2, '0');
+    final year = d.year;
+    final hour = d.hour.toString().padLeft(2, '0');
+    final minute = d.minute.toString().padLeft(2, '0');
+    return '$day/$month/$year $hour:$minute';
   }
 }

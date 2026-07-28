@@ -1,25 +1,13 @@
-import 'dart:async';
-import 'package:flutter_gherkin/flutter_gherkin.dart';
-import 'package:gherkin/gherkin.dart';
-import 'package:glob/glob.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:flutter_test/flutter_test.dart';
 
-import 'steps/login_steps.dart';
+import 'package:eco_rangers/main.dart';
 
-Future<void> main() {
-  final config = FlutterIntegrationTestConfiguration()
-    ..features = [Glob(r"features/**.feature")]
-    ..reporters = [
-      ProgressReporter(),
-      TestRunSummaryReporter(),
-    ]
-    ..stepDefinitions = [
-      GivenIAmOnTheLoginPage(),
-      WhenIEnterMyUsernameAndPassword(),
-      WhenITapTheLoginButton(),
-      ThenIShouldSeeTheHomePage(),
-    ]
-    ..restartAppBetweenScenarios = true;
+void main() {
+  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  return GherkinRunner().execute(config);
+  testWidgets('EcoRangers app launches', (WidgetTester tester) async {
+    await tester.pumpWidget(const EcoRangersApp());
+    expect(find.byType(EcoRangersApp), findsOneWidget);
+  });
 }

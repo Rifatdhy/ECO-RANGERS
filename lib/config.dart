@@ -8,8 +8,15 @@ late String baseUrl;
 
 // ensureBaseUrl sekarang hanya membaca dari dotenv
 Future<void> ensureBaseUrl() async {
-  // Ambil nilai dari .env, jika tidak ada, gunakan string kosong sebagai fallback
-  baseUrl = dotenv.env['API_BASE_URL'] ?? '';
+  // Ambil nilai dari .env, lalu fallback aman untuk desktop jika kosong
+  final envBaseUrl = dotenv.env['API_BASE_URL']?.trim();
+
+  if (envBaseUrl != null && envBaseUrl.isNotEmpty) {
+    baseUrl = envBaseUrl;
+    return;
+  }
+
+  baseUrl = Uri.base.host.isNotEmpty ? 'http://${Uri.base.host}:8000' : 'http://localhost:8000';
 }
 
 Uri api(String path, [Map<String, dynamic>? query]) {

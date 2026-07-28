@@ -12,8 +12,10 @@ class DetailLaporanAdminPage extends StatefulWidget {
   const DetailLaporanAdminPage({
     super.key,
     required this.laporan,
-    required this.onUpdate,
+    this.onUpdate = _noopUpdate,
   });
+
+  static void _noopUpdate(Laporan laporan, String status) {}
 
   @override
   State<DetailLaporanAdminPage> createState() => _DetailLaporanAdminPageState();

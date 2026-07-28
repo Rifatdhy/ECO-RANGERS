@@ -134,7 +134,7 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
               labelStyle: textTheme.labelLarge?.copyWith(fontSize: 14),
             ),
             const SizedBox(height: 16),
-            _buildInfoRow(Icons.person_outline, 'Pelapor', '${_currentLaporan.user?.nama ?? 'N/A'} (${_currentLaporan.user?.email ?? 'N/A'})', textTheme),
+            _buildInfoRow(Icons.person_outline, 'Pelapor', '${_currentLaporan.user?.name ?? _currentLaporan.user?.username ?? 'N/A'} (${_currentLaporan.user?.email ?? 'N/A'})', textTheme),
             const Divider(height: 24),
             _buildInfoRow(Icons.calendar_today_outlined, 'Tanggal Laporan', DateFormat('dd MMMM yyyy, HH:mm').format(_currentLaporan.createdAt), textTheme),
             const Divider(height: 24),
