@@ -58,10 +58,13 @@ class _ApiReportsPageState extends State<ApiReportsPage> {
               return const Center(child: CircularProgressIndicator());
             }
             if (snap.hasError) {
+              final msg = (snap.error is ApiException)
+                  ? (snap.error as ApiException).message
+                  : 'Gagal memuat laporan. Silakan coba lagi.';
               return Center(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
-                  child: Text('Error: ${snap.error}'),
+                  child: Text(msg),
                 ),
               );
             }

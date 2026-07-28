@@ -1,9 +1,5 @@
-import 'package:eco_rangers/config.dart';
 import 'package:eco_rangers/ui/app_theme.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'dart:async';
-import '../locator.dart';
 import '../services/auth_service.dart';
 import 'auth_page.dart';
 import 'dashboard_admin_page.dart';
@@ -49,10 +45,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   Future<void> _checkAuthAndNavigate() async {
-    await dotenv.load(fileName: ".env");
-    setupLocator();
-    await ensureBaseUrl();
-
     final token = await AuthService.instance.getToken();
     if (!mounted) return;
 

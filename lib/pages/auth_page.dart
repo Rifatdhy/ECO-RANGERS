@@ -80,11 +80,8 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
         email: _registerEmailController.text.trim(),
         password: _registerPasswordController.text,
       );
-      final user = await locator<AuthService>().login(
-        email: _registerEmailController.text.trim(),
-        password: _registerPasswordController.text,
-      );
-      _handleLoginSuccess(user.isAdmin);
+      // register() already stores token + currentUser, no need to login again
+      _handleLoginSuccess(locator<AuthService>().currentUser?.isAdmin ?? false);
     } catch (e) {
       _showError(e);
     } finally {

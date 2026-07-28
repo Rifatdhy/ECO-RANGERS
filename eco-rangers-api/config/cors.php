@@ -7,7 +7,7 @@ return [
     'allowed_methods' => ['*'],
 
     // Untuk development boleh '*' dulu. Nanti di production batasi asal domainnya.
-    'allowed_origins' => ['*'],
+    'allowed_origins' => [env('APP_URL', 'http://localhost:8000')],
 
     'allowed_origins_patterns' => [],
 

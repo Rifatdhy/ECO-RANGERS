@@ -1,12 +1,12 @@
 import 'package:eco_rangers/models/report_update.dart';
 import 'package:eco_rangers/pages/photo_viewer_page.dart';
 import 'package:eco_rangers/services/auth_service.dart';
+import 'package:eco_rangers/ui/status_config.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../locator.dart';
 import '../models/laporan.dart';
-import '../ui/app_theme.dart';
 import 'update_status_page.dart';
 
 class LaporanDetailPage extends StatefulWidget {
@@ -61,16 +61,11 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
   }
 
   ({Color color, IconData icon, String text}) _getStatusInfo(String status) {
-    switch (status.toLowerCase()) {
-      case 'selesai':
-        return (color: Colors.green, icon: Icons.check_circle, text: 'Selesai');
-      case 'diproses':
-        return (color: Colors.orange, icon: Icons.hourglass_bottom, text: 'Diproses');
-      case 'ditolak':
-        return (color: Colors.red, icon: Icons.cancel, text: 'Ditolak');
-      default: // pending
-        return (color: Colors.grey, icon: Icons.pending, text: 'Pending');
-    }
+    return (
+      color: StatusConfig.colorFor(status),
+      icon: StatusConfig.iconFor(status),
+      text: StatusConfig.labelFor(status),
+    );
   }
 
   @override

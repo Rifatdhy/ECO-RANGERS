@@ -1,5 +1,6 @@
-import 'package:eco_rangers/ui/app_theme.dart';
+import 'package:eco_rangers/ui/status_config.dart';
 import 'package:flutter/material.dart';
+import '../locator.dart';
 import '../services/api_client.dart';
 import '../models/laporan.dart';
 import 'laporan_detail_page.dart';
@@ -15,7 +16,7 @@ class DaftarLaporanPage extends StatefulWidget {
 
 class _DaftarLaporanPageState extends State<DaftarLaporanPage> {
   late Future<List<Laporan>> _reportsFuture;
-  final ApiClient _apiClient = ApiClient();
+  final ApiClient _apiClient = locator<ApiClient>();
 
   @override
   void initState() {
@@ -52,16 +53,11 @@ class _DaftarLaporanPageState extends State<DaftarLaporanPage> {
 
   // Helper untuk mendapatkan warna dan ikon berdasarkan status
   ({Color color, IconData icon, String text}) _getStatusInfo(String status) {
-    switch (status.toLowerCase()) {
-      case 'selesai':
-        return (color: Colors.green, icon: Icons.check_circle, text: 'Selesai');
-      case 'diproses':
-        return (color: Colors.orange, icon: Icons.hourglass_bottom, text: 'Diproses');
-      case 'ditolak':
-        return (color: Colors.red, icon: Icons.cancel, text: 'Ditolak');
-      default: // pending
-        return (color: Colors.grey, icon: Icons.pending, text: 'Pending');
-    }
+    return (
+      color: StatusConfig.colorFor(status),
+      icon: StatusConfig.iconFor(status),
+      text: StatusConfig.labelFor(status),
+    );
   }
 
   @override
@@ -87,10 +83,13 @@ class _DaftarLaporanPageState extends State<DaftarLaporanPage> {
               return const Center(child: CircularProgressIndicator());
             }
             if (snap.hasError) {
+              final msg = (snap.error is ApiException)
+                  ? (snap.error as ApiException).message
+                  : 'Gagal memuat data. Silakan coba lagi.';
               return Center(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
-                  child: Text('Gagal memuat data: ${snap.error}', textAlign: TextAlign.center),
+                  child: Text(msg, textAlign: TextAlign.center),
                 ),
               );
             }

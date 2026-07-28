@@ -70,8 +70,9 @@ class _UpdateStatusPageState extends State<UpdateStatusPage> {
 
     } catch (e) {
       if (!mounted) return;
+      final msg = e is ApiException ? e.message : 'Gagal memperbarui status. Silakan coba lagi.';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memperbarui: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text(msg), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) {
@@ -209,7 +210,7 @@ class _UpdateStatusPageState extends State<UpdateStatusPage> {
   }
 
   Widget _buildSubmitButton() {
-    return ElevatedButton.icon(
+    return FilledButton.icon(
       onPressed: _isLoading ? null : _submitUpdate,
       icon: _isLoading ? Container() : const Icon(Icons.save_alt_outlined),
       label: _isLoading

@@ -44,9 +44,10 @@ class _DetailLaporanAdminPageState extends State<DetailLaporanAdminPage> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
+      final msg = e is ApiException ? e.message : 'Gagal memperbarui status. Silakan coba lagi.';
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Gagal update: $e')));
+      ).showSnackBar(SnackBar(content: Text(msg)));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -71,11 +72,10 @@ class _DetailLaporanAdminPageState extends State<DetailLaporanAdminPage> {
 
   @override
   Widget build(BuildContext context) {
-    final String? imgUrl =
-        widget.laporan.fotoUrl ??
-        (widget.laporan.fotoPath != null && widget.laporan.fotoPath!.isNotEmpty
-            ? '$baseUrl/storage/${widget.laporan.fotoPath}'
-            : null);
+    final String? imgUrl = imageUrlFrom({
+      'foto_url': widget.laporan.fotoUrl,
+      'foto_path': widget.laporan.fotoPath,
+    });
     
     // Cek apakah lokasi mengandung koma, yang menandakan itu adalah koordinat
     final bool isCoordinate = widget.laporan.lokasi.contains(',');
@@ -144,9 +144,9 @@ class _DetailLaporanAdminPageState extends State<DetailLaporanAdminPage> {
               isExpanded: true,
             ),
             const SizedBox(height: 16),
-            ElevatedButton(
+            FilledButton(
               onPressed: _saving ? null : _save,
-              style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
+              style: FilledButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
               child: _saving
                   ? const CircularProgressIndicator(color: Colors.white)
                   : const Text('Update Status'),

@@ -44,10 +44,9 @@ class ReportListTest extends TestCase
     }
 
     /** @test */
-    public function unauthenticated_request_gets_empty_array()
+    public function unauthenticated_request_gets_unauthorized()
     {
         $response = $this->getJson('/api/reports');
-        $response->assertStatus(200);
-        $response->assertJson([]);
+        $response->assertStatus(401);
     }
 }

@@ -36,7 +36,6 @@ class ReportController extends Controller
         $reports = $query->paginate($perPage, ['*'], 'page', $page);
 
         $reports->getCollection()->each(function ($report) {
-            $report->foto_url = $report->foto_path ? asset('storage/' . $report->foto_path) : null;
             $report->updates->each(function ($update) {
                 $update->foto_dokumentasi_url = $update->foto_dokumentasi ? asset('storage/' . $update->foto_dokumentasi) : null;
             });
@@ -92,16 +91,14 @@ class ReportController extends Controller
 
     public function updateStatus(Request $request, Report $report)
     {
-        if ($request->has('status')) {
-            $request->merge(['status' => strtolower($request->input('status'))]);
-        }
-
         $validated = $request->validate([
-            'status'             => ['required', 'in:pending,diproses,selesai,ditolak'],
-            'keterangan'         => ['nullable', 'string'],
-            'nama_petugas'       => ['nullable', 'string', 'max:255'],
-            'foto_dokumentasi'   => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:4096'],
+            'status'             => 'required|string|in:pending,diproses,selesai,ditolak',
+            'keterangan'         => 'nullable|string',
+            'nama_petugas'       => 'nullable|string|max:255',
+            'foto_dokumentasi'   => 'nullable|image|mimes:jpg,jpeg,png|max:4096',
         ]);
+
+        $validated['status'] = strtolower($validated['status']);
 
         $path = null;
         if ($request->hasFile('foto_dokumentasi')) {
@@ -121,7 +118,6 @@ class ReportController extends Controller
         });
 
         $report->load(['user', 'updates']);
-        $report->status = ucfirst($report->status);
 
         return response()->json([
             'message' => 'Status laporan berhasil diubah',

@@ -43,11 +43,19 @@ class Report extends Model
     protected static function booted()
     {
         static::creating(function ($report) {
-            if ($report->status) {
-                $report->status = strtolower($report->status);
-            } else {
+            if (!$report->status) {
                 $report->status = 'pending';
             }
         });
+    }
+
+    public function setStatusAttribute($value)
+    {
+        $this->attributes['status'] = strtolower($value);
+    }
+
+    public function getStatusAttribute($value)
+    {
+        return $value;
     }
 }

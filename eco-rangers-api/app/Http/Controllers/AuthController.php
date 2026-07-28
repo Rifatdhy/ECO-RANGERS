@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
@@ -42,14 +41,10 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
-        if (!Auth::attempt($credentials)) {
+        $user = User::where('email', $request->email)->first();
+        if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json(['message' => 'Email atau password salah'], 401);
         }
-
-        $user = User::where('email', $request->email)->firstOrFail();
-
-        // Hapus token lama & buat token baru dengan kemampuan yang sesuai
-        $user->tokens()->delete();
 
         $abilities = $user->is_admin ? ['role:admin'] : ['role:user'];
         $token = $user->createToken('auth_token', $abilities)->plainTextToken;

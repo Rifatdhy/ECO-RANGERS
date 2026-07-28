@@ -39,11 +39,15 @@ class ApiClient {
     for (int attempt = 0; attempt <= _maxRetries; attempt++) {
       try {
         final client = _httpClient ?? http.Client();
-        final req = http.Request(method, uri)
-          ..headers.addAll(headers ?? {})
-          ..body = body ?? '';
-        final res = await client.send(req).timeout(_timeout);
-        return await http.Response.fromStream(res);
+        try {
+          final req = http.Request(method, uri)
+            ..headers.addAll(headers ?? {})
+            ..body = body ?? '';
+          final res = await client.send(req).timeout(_timeout);
+          return await http.Response.fromStream(res);
+        } finally {
+          if (_httpClient == null) client.close();
+        }
       } on http.ClientException {
         if (attempt == _maxRetries) rethrow;
         await Future.delayed(Duration(milliseconds: 500 * (attempt + 1)));
@@ -77,7 +81,9 @@ class ApiClient {
     if (res.statusCode != 200) {
       throw ApiException(message: 'Gagal memuat laporan', statusCode: res.statusCode, data: res.body);
     }
-    return jsonDecode(res.body) as List;
+    final decoded = jsonDecode(res.body);
+    if (decoded is List) return decoded;
+    return (decoded['data'] as List?) ?? [];
   }
 
   Future<Map<String, dynamic>> createReport({

@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Response;
+use Illuminate\Support\Str;
 
 Route::get('/', function () {
     return view('welcome');
@@ -11,8 +12,11 @@ Route::get('/', function () {
 // Rute ini akan menangani permintaan file dari storage secara manual
 // agar melewati middleware CORS
 Route::get('storage/{path}', function ($path) {
-    // Keamanan dasar untuk mencegah directory traversal
-    if (strpos($path, '..') !== false) {
+    // Keamanan untuk mencegah directory traversal
+    $path = urldecode($path);
+    $safePath = Storage::disk('public')->path($path);
+    $diskRoot = Storage::disk('public')->path('');
+    if (!Str::startsWith($safePath, $diskRoot)) {
         abort(403);
     }
 

@@ -1,15 +1,17 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AdminAuthController;
 
 // Endpoint publik
 Route::get('/ping', fn () => response()->json(['ok' => true]));
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/admin/login', [AdminAuthController::class, 'login']);
+Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+Route::post('/admin/login', [AdminAuthController::class, 'login'])->middleware('throttle:5,1');
 
 // Rute testing (hanya aktif di environment local/testing) untuk membantu
 // pembuatan data yang diperlukan selama pengujian acceptance.
@@ -69,23 +71,28 @@ if (app()->environment(['local', 'testing'])) {
 
 // Rute proxy untuk mengambil file
 Route::get('/files/{path}', function ($path) {
-    if (strpos($path, '..') !== false) {
-        abort(403, 'Invalid path');
+    try {
+        $path = urldecode($path);
+        $safePath = Storage::disk('public')->path($path);
+        $diskRoot = Storage::disk('public')->path('');
+        if (!Str::startsWith($safePath, $diskRoot)) {
+            abort(403, 'Invalid path');
+        }
+        $disk = Storage::disk('public');
+        if (!$disk->exists($path)) {
+            abort(404, 'File not found');
+        }
+        return $disk->response($path);
+    } catch (\League\Flysystem\PathTraversalDetected $e) {
+        abort(403, 'Path traversal detected');
     }
-    $disk = Illuminate\Support\Facades\Storage::disk('public');
-    if (!$disk->exists($path)) {
-        abort(404, 'File not found');
-    }
-    return $disk->response($path);
 })->where('path', '.+');
-
-// Endpoint publik (termasuk daftar laporan tanpa autentikasi)
-Route::get('/reports', [ReportController::class, 'index']);
 
 // Endpoint untuk user yang sudah login
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::get('/reports', [ReportController::class, 'index']);
     Route::get('/reports/{report}', [ReportController::class, 'show']);
     Route::post('/reports', [ReportController::class, 'store']);
 });

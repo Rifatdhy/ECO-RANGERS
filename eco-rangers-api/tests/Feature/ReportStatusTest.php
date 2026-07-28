@@ -24,7 +24,7 @@ class ReportStatusTest extends TestCase
         ]);
 
         $response->assertStatus(200)
-                 ->assertJsonFragment(['status' => 'Selesai']);
+                 ->assertJsonFragment(['status' => 'selesai']);
     }
 
     /** @test */

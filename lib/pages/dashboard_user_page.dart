@@ -6,6 +6,7 @@ import '../models/user.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../ui/app_theme.dart';
+import '../ui/status_config.dart';
 import 'auth_page.dart';
 import 'buat_laporan_page.dart';
 import 'laporan_detail_page.dart';
@@ -40,8 +41,9 @@ class _DashboardUserPageState extends State<DashboardUserPage> {
       if (mounted) setState(() {});
     } catch (e) {
       if (mounted) {
+        final msg = e is ApiException ? e.message : 'Terjadi kesalahan. Silakan coba lagi.';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal memuat data: ${e.toString()}')),
+          SnackBar(content: Text(msg)),
         );
       }
     } finally {
@@ -62,72 +64,6 @@ class _DashboardUserPageState extends State<DashboardUserPage> {
 
   Future<void> _refreshData() async {
     await _loadData();
-  }
-
-  void _showFilterBottomSheet() {
-    final theme = Theme.of(context);
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: theme.colorScheme.surface,
-      showDragHandle: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Filter status',
-                style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Pilih kategori yang ingin ditampilkan.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.72),
-                ),
-              ),
-              const SizedBox(height: 16),
-              ..._filterOptions.map((filter) {
-                final selected = _selectedFilter == filter;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Material(
-                    color: selected
-                        ? AppTheme.industrialSilver.withValues(alpha: 0.12)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(18),
-                    child: ListTile(
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                      title: Text(
-                        filter,
-                        style: TextStyle(
-                          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                          color: selected ? AppTheme.industrialBlack : null,
-                        ),
-                      ),
-                      trailing: selected
-                          ? const Icon(Icons.check_circle, color: AppTheme.industrialBlack)
-                          : const Icon(Icons.chevron_right),
-                      onTap: () {
-                        setState(() => _selectedFilter = filter);
-                        Navigator.pop(context);
-                        _loadData();
-                      },
-                    ),
-                  ),
-                );
-              }),
-            ],
-          ),
-        );
-      },
-    );
   }
 
   List<Laporan> get _filteredReports {
@@ -304,11 +240,6 @@ class _DashboardUserPageState extends State<DashboardUserPage> {
                             decoration: InputDecoration(
                               hintText: 'Cari laporan berdasarkan judul atau deskripsi',
                               prefixIcon: const Icon(Icons.search),
-                              suffixIcon: IconButton(
-                                icon: const Icon(Icons.tune_rounded),
-                                tooltip: 'Filter status',
-                                onPressed: _showFilterBottomSheet,
-                              ),
                             ),
                             onChanged: (value) => setState(() => _searchQuery = value.toLowerCase()),
                           ),
@@ -499,20 +430,7 @@ class _DashboardUserPageState extends State<DashboardUserPage> {
     );
   }
 
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'pending':
-        return Colors.orange;
-      case 'diproses':
-        return AppTheme.industrialSilver;
-      case 'selesai':
-        return Colors.green;
-      case 'ditolak':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
-  }
+  Color _getStatusColor(String status) => StatusConfig.colorFor(status);
 }
 
 class _StatTile extends StatelessWidget {
