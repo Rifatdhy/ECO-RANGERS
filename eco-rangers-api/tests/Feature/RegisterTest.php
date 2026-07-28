@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use App\Models\User;
 
 class RegisterTest extends TestCase
 {
@@ -26,5 +27,21 @@ class RegisterTest extends TestCase
         // THEN server mengembalikan status 201 dan token user
         $response->assertStatus(201)
                  ->assertJsonStructure(['user', 'token']);
+    }
+
+    /** @test */
+    public function cannot_register_with_duplicate_email()
+    {
+        User::factory()->create(['email' => 'existing@example.com']);
+
+        $data = [
+            'username' => 'newuser',
+            'email' => 'existing@example.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ];
+
+        $response = $this->postJson('/api/register', $data);
+        $response->assertStatus(422);
     }
 }
