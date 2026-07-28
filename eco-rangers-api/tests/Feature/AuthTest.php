@@ -30,4 +30,24 @@ class AuthTest extends TestCase
         $response->assertStatus(200)
                  ->assertJsonStructure(['token']);
     }
+
+    /** @test */
+    public function user_cannot_login_with_wrong_password()
+    {
+        // GIVEN user dengan password yang benar ada di database
+        $user = User::factory()->create([
+            'email' => 'test@example.com',
+            'password' => bcrypt('correct'),
+        ]);
+
+        // WHEN user login dengan password yang salah
+        $response = $this->postJson('/api/login', [
+            'email' => 'test@example.com',
+            'password' => 'wrong',
+        ]);
+
+        // THEN server merespons 401 dengan pesan error
+        $response->assertStatus(401)
+                 ->assertJson(['message' => 'Email atau password salah']);
+    }
 }

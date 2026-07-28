@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
 use App\Models\User;
 use App\Models\Report;
 
@@ -12,20 +13,31 @@ class ReportStatusTest extends TestCase
     use RefreshDatabase;
 
     /** @test */
-    public function user_can_update_report_status()
+    public function admin_can_update_report_status()
     {
-        // GIVEN user login dan satu laporan sudah ada
-        $user = User::factory()->create();
-        $report = Report::factory()->create(['status' => 'Pending']);
+        $admin = User::factory()->create(['is_admin' => true]);
+        $report = Report::factory()->create(['status' => 'pending']);
 
-        // WHEN user mengubah status laporan
-        $response = $this->actingAs($user, 'api')
-                         ->patchJson("/api/reports/{$report->id}/status", [
-                             'status' => 'resolved',
-                         ]);
+        Sanctum::actingAs($admin, ['role:admin']);
+        $response = $this->patchJson("/api/reports/{$report->id}/status", [
+            'status' => 'selesai',
+        ]);
 
-        // THEN server merespons 200 dan status berubah
         $response->assertStatus(200)
-                 ->assertJsonFragment(['status' => 'resolved']);
+                 ->assertJsonFragment(['status' => 'Selesai']);
+    }
+
+    /** @test */
+    public function non_admin_cannot_update_status()
+    {
+        $user = User::factory()->create();
+        $report = Report::factory()->create(['status' => 'pending']);
+
+        Sanctum::actingAs($user, ['role:user']);
+        $response = $this->patchJson("/api/reports/{$report->id}/status", [
+            'status' => 'selesai',
+        ]);
+
+        $response->assertStatus(403);
     }
 }
