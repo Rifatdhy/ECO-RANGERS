@@ -1,129 +1,215 @@
-# Eco Rangers 🌱
+# 🌱 Eco Rangers
 
-Eco Rangers adalah aplikasi pelaporan masalah lingkungan berbasis mobile. Proyek ini terdiri dari aplikasi mobile (Flutter) dan backend API (Laravel).
+**Eco Rangers** adalah aplikasi pelaporan masalah lingkungan berbasis mobile yang memungkinkan pengguna untuk melaporkan, memantau, dan menindaklanjuti isu-isu lingkungan secara real-time. Proyek ini terdiri dari aplikasi mobile (Flutter) dan backend API (Laravel).
+
+---
+
+## ✨ Fitur Utama
+
+| Fitur | Deskripsi |
+|-------|-----------|
+| 📸 **Laporan + Foto** | Laporkan masalah lingkungan lengkap dengan foto dan lokasi |
+| 🔍 **Pencarian & Filter** | Cari laporan berdasarkan judul/deskripsi, filter berdasarkan status |
+| 📊 **Status Real-time** | Pantau status laporan: Pending, Diproses, Selesai, Ditolak |
+| 👤 **Autentikasi** | Login/Register untuk pengguna, role khusus untuk admin |
+| 🛡️ **Dashboard Admin** | Kelola semua laporan, ubah status, dan kelola pengguna |
+| 📱 **Responsif** | Tampilan optimal di berbagai ukuran layar mobile |
+
+---
+
+## 🧱 Teknologi
+
+### Frontend (Mobile)
+- **Flutter** — Framework UI cross-platform
+- **Dart** — Bahasa pemrograman
+- **Provider / GetIt** — Manajemen state & dependency injection
+- **SharedPreferences** — Penyimpanan lokal token & sesi
+- **DevicePreview** — Preview responsif saat debugging
+
+### Backend (API)
+- **Laravel 11** — Framework PHP
+- **SQLite / MySQL** — Database
+- **Sanctum** — Autentikasi API token
+- **Laravel Dusk** — Browser testing
+
+---
 
 ## 📂 Struktur Proyek
 
-Proyek ini menggunakan struktur monorepo dimana kode Frontend dan Backend berada dalam satu repositori utama:
-
-*   **Root Folder (`/`)**: Berisi source code aplikasi Mobile **Flutter**.
-*   **Folder API (`/eco-rangers-api`)**: Berisi source code Backend **Laravel**.
+```
+ECO-RANGERS/
+├── lib/                          # Aplikasi Flutter
+│   ├── main.dart                 # Entry point aplikasi
+│   ├── config.dart               # Konfigurasi API URL
+│   ├── locator.dart              # Dependency injection (GetIt)
+│   ├── models/                   # Model data (User, Laporan)
+│   ├── pages/                    # Halaman aplikasi
+│   │   ├── auth_page.dart        # Halaman login/register
+│   │   ├── dashboard_user_page.dart  # Dashboard user
+│   │   ├── buat_laporan_page.dart    # Form laporan baru
+│   │   └── laporan_detail_page.dart  # Detail laporan
+│   ├── services/                 # Service layer
+│   │   ├── api_client.dart       # HTTP client utama
+│   │   ├── auth_service.dart     # Autentikasi
+│   │   └── report_api.dart       # API laporan
+│   └── ui/                       # Tema & komponen UI
+│       └── app_theme.dart        # Tema kustom
+├── eco-rangers-api/              # Backend Laravel
+│   ├── app/Http/Controllers/     # Controller API
+│   ├── app/Models/               # Model Eloquent
+│   ├── database/migrations/      # Migrasi database
+│   ├── database/seeders/         # Seeder data awal
+│   └── routes/api.php            # Rute API
+├── test/                         # Unit test Flutter
+├── integration_test/             # Integration test Flutter
+└── features/                     # BDD feature files
+```
 
 ---
 
-## 🛠 Prasyarat (Requirements)
+## 🚀 Panduan Instalasi
 
-Pastikan perangkat Anda telah terinstal:
-*   **PHP** >= 8.2 & **Composer**
-*   **Flutter SDK** (Versi 3.x)
-*   **Android Studio** / VS Code
-*   **Database** (MySQL atau SQLite)
+### Prasyarat
+
+| Tools | Versi Minimal |
+|-------|---------------|
+| PHP | >= 8.2 |
+| Composer | latest |
+| Flutter SDK | 3.x |
+| Database | SQLite / MySQL |
 
 ---
-
-## 🚀 Panduan Instalasi & Menjalankan
 
 ### 1. Setup Backend (Laravel API)
 
-Backend menangani database, autentikasi, dan penyimpanan file.
+```bash
+# Masuk ke folder API
+cd eco-rangers-api
 
-1.  Masuk ke folder API:
-    ```bash
-    cd eco-rangers-api
-    ```
+# Install dependencies PHP
+composer install
 
-2.  Install dependencies:
-    ```bash
-    composer install
-    ```
+# Konfigurasi environment
+cp .env.example .env
+# Edit file .env sesuai database Anda
 
-3.  Konfigurasi Environment:
-    *   Salin file contoh `.env`:
-        ```bash
-        cp .env.example .env
-        ```
-    *   Buka file `.env` dan atur koneksi database (DB_DATABASE, DB_USERNAME, dll).
-    *   Generate Application Key:
-        ```bash
-        php artisan key:generate
-        ```
+# Generate application key
+php artisan key:generate
 
-4.  Migrasi Database:
-    ```bash
-    php artisan migrate
-    ```
-    *(Opsional) Jika ingin data dummy dan akun admin bawaan:*
-    ```bash
-    php artisan migrate --seed
-    ```
+# Migrasi database (dengan seeder untuk akun default)
+php artisan migrate --seed
 
-5.  Jalankan Server:
-    ```bash
-    php artisan serve --host=0.0.0.0 --port=8000
-    ```
-    > **Catatan:** Menggunakan `0.0.0.0` penting agar API bisa diakses dari Emulator atau HP fisik dalam jaringan yang sama.
+# Buat symbolic link untuk penyimpanan file
+php artisan storage:link
 
-### 2. Setup Frontend (Flutter Mobile)
+# Jalankan server
+php artisan serve --host=0.0.0.0 --port=8000
+```
 
-1.  Kembali ke root folder:
-    ```bash
-    cd ..
-    ```
+> **Catatan:** Gunakan `--host=0.0.0.0` agar API bisa diakses dari emulator atau HP fisik dalam jaringan yang sama.
 
-2.  Install dependencies Flutter:
-    ```bash
-    flutter pub get
-    ```
+---
 
-3.  **PENTING: Konfigurasi Koneksi (.env)**
-    Buat file `.env` di root folder (sejajar dengan `pubspec.yaml`), lalu isi dengan URL API Anda:
+### 2. Setup Frontend (Flutter)
 
-    *   **Jika menggunakan Android Emulator:**
-        ```env
-        API_BASE_URL=http://10.0.2.2:8000
-        ```
-    *   **Jika menggunakan HP Fisik (Debugging USB):**
-        Gunakan IP address laptop Anda (cek dengan `ipconfig` atau `ifconfig`).
-        ```env
-        API_BASE_URL=http://192.168.1.X:8000
-        ```
+```bash
+# Kembali ke root folder
+cd ..
 
-4.  Jalankan Aplikasi:
-    ```bash
-    flutter run
-    ```
+# Install dependencies Flutter
+flutter pub get
+
+# Konfigurasi koneksi API
+# Buat file .env di root folder (sejajar dengan pubspec.yaml)
+```
+
+**Isi file `.env`:**
+
+```env
+# Untuk Android Emulator
+API_BASE_URL=http://10.0.2.2:8000
+
+# Untuk HP Fisik (gunakan IP laptop Anda)
+API_BASE_URL=http://192.168.1.X:8000
+```
+
+```bash
+# Jalankan aplikasi
+flutter run
+```
 
 ---
 
 ## 🔑 Akun Default (Testing)
 
-Jika Anda menjalankan *seeding* atau menggunakan rute testing, berikut adalah akun admin default:
+Setelah menjalankan `php artisan migrate --seed`, akun berikut tersedia:
 
-*   **Email:** `admin@gmail.com`
-*   **Password:** `12345678`
+| Role | Email | Password |
+|------|-------|----------|
+| **Admin** | `admin@gmail.com` | `12345678` |
+| **User** *(jika ada seeder)* | *(tergantung seeder)* | *(tergantung seeder)* |
 
 ---
 
 ## 🧪 Testing
 
-### Backend Tests
-Proyek ini dilengkapi dengan Feature Test dan Browser Test (Laravel Dusk).
+### Backend (Laravel)
 
 ```bash
 cd eco-rangers-api
 php artisan test
 ```
 
-### Frontend Debugging
-Aplikasi menggunakan `DevicePreview` untuk memudahkan pengembangan UI responsif. Fitur ini aktif secara default di mode debug.
+### Frontend (Flutter)
+
+```bash
+# Unit test
+flutter test
+
+# Integration test
+flutter test integration_test/
+```
 
 ---
 
 ## 📝 Catatan Penting
 
-*   **Gambar & File:** Aplikasi menggunakan sistem proxy (`/api/files/{path}`) untuk memuat gambar. Pastikan folder `storage/app/public` di Laravel telah di-link:
-    ```bash
-    cd eco-rangers-api
-    php artisan storage:link
-    ```
-*   **Izin Akses:** Pada Android, pastikan izin Lokasi dan Kamera/Galeri diberikan saat aplikasi meminta.
+### Gambar & File
+Aplikasi menggunakan sistem proxy (`/api/files/{path}`) untuk memuat gambar. Pastikan folder storage telah di-link:
+
+```bash
+cd eco-rangers-api
+php artisan storage:link
+```
+
+### Izin Aplikasi
+Pada Android, pastikan izin berikut diberikan saat diminta:
+- 📍 **Lokasi** — Untuk mengambil lokasi laporan
+- 📷 **Kamera/Galeri** — Untuk mengunggah foto
+
+### Koneksi API
+Jika aplikasi tidak dapat terhubung ke API:
+1. Pastikan server Laravel berjalan
+2. Periksa alamat IP pada file `.env`
+3. Pastikan perangkat dan server berada dalam jaringan yang sama
+4. Nonaktifkan firewall jika perlu
+
+---
+
+## 🤝 Kontribusi
+
+1. Fork repositori ini
+2. Buat branch fitur baru: `git checkout -b fitur-keren`
+3. Commit perubahan: `git commit -m 'Menambahkan fitur keren'`
+4. Push ke branch: `git push origin fitur-keren`
+5. Buat Pull Request
+
+---
+
+## 📄 Lisensi
+
+Hak cipta © 2024 Eco Rangers. Didistribusikan di bawah lisensi MIT.
+
+---
+
+<p align="center">Dibuat dengan ❤️ untuk lingkungan yang lebih baik</p>
