@@ -60,7 +60,7 @@ class Laporan {
       deskripsi: json['deskripsi'] as String? ?? 'Tanpa Deskripsi',
       latitude: (json['lat'] as num?)?.toDouble(),
       longitude: (json['lng'] as num?)?.toDouble(),
-      lokasiText: (json['lokasi_text'] as String?) ?? (json['lat'] != null && json['lng'] != null ? '${json['lat']}, ${json['lng']}' : null),
+      lokasiText: (json['lokasi_text'] as String?) ?? (json['lat'] != null && json['lng'] != null ? '${json['lat']}, ${json['lng']}' : 'Lokasi tidak tersedia'),
       fotoPath: fotoPath,
       fotoUrl: fotoPath != null ? imageUrlFrom({'foto_path': fotoPath}) : null,
       status: json['status'] as String? ?? 'pending',
