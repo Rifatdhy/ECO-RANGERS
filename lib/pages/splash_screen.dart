@@ -1,7 +1,13 @@
+import 'package:eco_rangers/config.dart';
 import 'package:eco_rangers/ui/app_theme.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:async';
+import '../locator.dart';
+import '../services/auth_service.dart';
 import 'auth_page.dart';
+import 'dashboard_admin_page.dart';
+import 'dashboard_user_page.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -39,22 +45,48 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     _controller.forward();
 
-    Timer(
-      const Duration(seconds: 3),
-      () {
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            PageRouteBuilder(
-              pageBuilder: (_, __, ___) => const AuthPage(),
-              transitionsBuilder: (_, animation, __, child) {
-                return FadeTransition(opacity: animation, child: child);
-              },
-              transitionDuration: const Duration(milliseconds: 800),
-            ),
-          );
+    _checkAuthAndNavigate();
+  }
+
+  Future<void> _checkAuthAndNavigate() async {
+    await dotenv.load(fileName: ".env");
+    setupLocator();
+    await ensureBaseUrl();
+
+    final token = await AuthService.instance.getToken();
+    if (!mounted) return;
+
+    if (token != null && token.isNotEmpty) {
+      try {
+        final user = await AuthService.instance.getMe();
+        if (!mounted) return;
+        if (user != null && user.isAdmin) {
+          _navigate(const DashboardAdminPage());
+        } else if (user != null) {
+          _navigate(const DashboardUserPage());
+        } else {
+          _navigate(const AuthPage());
         }
-      },
+      } catch (_) {
+        _navigate(const AuthPage());
+      }
+    } else {
+      await Future.delayed(const Duration(milliseconds: 1500));
+      if (mounted) _navigate(const AuthPage());
+    }
+  }
+
+  void _navigate(Widget page) {
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => page,
+        transitionsBuilder: (_, animation, __, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 500),
+      ),
     );
   }
 
@@ -87,7 +119,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 const SizedBox(height: 8),
                 Text(
                   "Lapor, Lacak, Lindungi.",
-                  // FIX: Menggunakan warna dari tema konteks
                   style: textTheme.bodyLarge?.copyWith(color: textTheme.bodyMedium?.color),
                 ),
               ],

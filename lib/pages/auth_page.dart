@@ -516,6 +516,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           TextFormField(
+            key: const ValueKey('login-email'),
             controller: _loginEmailController,
             decoration: _fieldDecoration(
               label: 'Email',
@@ -527,6 +528,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
           ),
           const SizedBox(height: 14),
           TextFormField(
+            key: const ValueKey('login-password'),
             controller: _loginPasswordController,
             decoration: _fieldDecoration(
               label: 'Password',

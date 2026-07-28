@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:eco_rangers/config.dart';
 import 'package:eco_rangers/models/laporan.dart';
-import 'package:eco_rangers/models/report_update.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
