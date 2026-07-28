@@ -79,11 +79,13 @@ Route::get('/files/{path}', function ($path) {
     return $disk->response($path);
 })->where('path', '.+');
 
+// Endpoint publik (termasuk daftar laporan tanpa autentikasi)
+Route::get('/reports', [ReportController::class, 'index']);
+
 // Endpoint untuk user yang sudah login
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
-    Route::get('/reports', [ReportController::class, 'index']);
     Route::get('/reports/{report}', [ReportController::class, 'show']);
     Route::post('/reports', [ReportController::class, 'store']);
 });
