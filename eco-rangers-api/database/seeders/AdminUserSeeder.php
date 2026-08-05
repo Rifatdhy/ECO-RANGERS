@@ -14,14 +14,17 @@ class AdminUserSeeder extends Seeder
      */
     public function run(): void
     {
+        $email = env('ADMIN_EMAIL', 'admin@gmail.com');
+        $password = env('ADMIN_PASSWORD', '12345678');
+
         // Hapus admin lama jika ada, untuk menghindari error duplikat
-        User::where('email', 'admin@gmail.com')->delete();
+        User::where('email', $email)->delete();
 
         User::create([
             'name' => 'Admin User', // Menambahkan kolom name yang wajib diisi
             'username' => 'admin',
-            'email' => 'admin@gmail.com',
-            'password' => Hash::make('12345678'),
+            'email' => $email,
+            'password' => Hash::make($password),
             'is_admin' => true,
         ]);
     }

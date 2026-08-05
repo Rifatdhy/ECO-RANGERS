@@ -2,6 +2,9 @@ import 'package:eco_rangers/ui/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'auth_page.dart';
+import 'dashboard_admin_page.dart';
+import 'dashboard_user_page.dart';
+import '../services/auth_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -14,6 +17,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+  Timer? _timer;
 
   @override
   void initState() {
@@ -39,27 +43,37 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     _controller.forward();
 
-    Timer(
+    _timer = Timer(
       const Duration(seconds: 3),
-      () {
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            PageRouteBuilder(
-              pageBuilder: (_, __, ___) => const AuthPage(),
-              transitionsBuilder: (_, animation, __, child) {
-                return FadeTransition(opacity: animation, child: child);
-              },
-              transitionDuration: const Duration(milliseconds: 800),
-            ),
-          );
-        }
-      },
+      () => _navigate(),
     );
+  }
+
+  Future<void> _navigate() async {
+    if (!mounted) return;
+    Widget page = const AuthPage();
+
+    final user = await AuthService.instance.getMe();
+    if (mounted) {
+      if (user != null) {
+        page = user.isAdmin ? const DashboardAdminPage() : const DashboardUserPage();
+      }
+      Navigator.pushReplacement(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (_, __, ___) => page,
+          transitionsBuilder: (_, animation, __, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 800),
+        ),
+      );
+    }
   }
 
   @override
   void dispose() {
+    _timer?.cancel();
     _controller.dispose();
     super.dispose();
   }
@@ -69,7 +83,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: Center(
         child: FadeTransition(
           opacity: _fadeAnimation,

@@ -20,9 +20,9 @@ return new class extends Migration
             $table->decimal('lng', 10, 7)->nullable();
             $table->string('foto_path')->nullable();
 
-            // ✅ ENUM fix — izinkan 4 status + versi huruf besar & kecil
-            $table->string('status')->default('Pending')
-                  ->checkIn(['Pending','pending','Diproses','diproses','Selesai','selesai','resolved','Resolved']);
+            // ✅ ENUM fix — izinkan 4 status (lowercase, sesuai validasi controller)
+            $table->string('status')->default('pending')
+                  ->checkIn(['pending','diproses','selesai','ditolak']);
 
             $table->timestamps();
         });

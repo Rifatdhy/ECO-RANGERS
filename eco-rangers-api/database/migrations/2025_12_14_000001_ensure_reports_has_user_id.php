@@ -6,6 +6,9 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    // BUKAN duplikat: di fresh install, 2024_07_26_000100_add_user_id_to_reports_table
+    // berjalan sebelum create_reports (2025_09_15) sehingga guard hasTable()-nya
+    // early-return. Migrasi ini yang benar-benar menambahkan user_id.
     public function up(): void
     {
         if (! Schema::hasTable('reports')) return;

@@ -42,12 +42,12 @@ class Report extends Model
 
     protected static function booted()
     {
-        static::creating(function ($report) {
-            if ($report->status) {
-                $report->status = strtolower($report->status);
-            } else {
-                $report->status = 'pending';
+        static::saving(function ($report) {
+            $status = strtolower(trim($report->status ?: 'pending'));
+            if ($status === 'resolved') {
+                $status = 'selesai';
             }
+            $report->status = $status;
         });
     }
 }

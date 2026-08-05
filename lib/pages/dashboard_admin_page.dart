@@ -6,8 +6,9 @@ import '../models/user.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../ui/app_theme.dart';
+import '../ui/status_info.dart';
 import 'auth_page.dart';
-import 'detail_laporan_admin_page.dart';
+import 'laporan_detail_page.dart';
 
 class DashboardAdminPage extends StatefulWidget {
   const DashboardAdminPage({super.key});
@@ -330,10 +331,7 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => DetailLaporanAdminPage(
-                laporan: report,
-                onUpdate: (_, __) {},
-              ),
+              builder: (context) => LaporanDetailPage(laporan: report),
             ),
           ).then((_) => _loadData());
         },
@@ -350,14 +348,14 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
                     height: 48,
                     width: 48,
                     decoration: BoxDecoration(
-                      color: _getStatusColor(report.status).withValues(alpha: 0.12),
+                      color: statusColor(report.status).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(16),
                     ),
                       child: Icon(
                         report.status.toLowerCase() == 'selesai'
                             ? Icons.verified_rounded
                             : Icons.report_problem_outlined,
-                        color: _getStatusColor(report.status),
+                        color: statusColor(report.status),
                       ),
                   ),
                   const SizedBox(width: 14),
@@ -401,7 +399,7 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
                   Chip(
                     label: Text(report.status),
                     labelStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                    backgroundColor: _getStatusColor(report.status),
+                    backgroundColor: statusColor(report.status),
                     side: BorderSide.none,
                   ),
                   const Spacer(),
@@ -443,21 +441,6 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
         ),
       ),
     );
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'pending':
-        return Colors.orange;
-      case 'diproses':
-        return AppTheme.primaryColor;
-      case 'selesai':
-        return Colors.green;
-      case 'ditolak':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
   }
 }
 

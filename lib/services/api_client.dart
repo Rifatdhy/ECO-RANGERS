@@ -7,6 +7,14 @@ import '../models/laporan.dart';
 import 'auth_service.dart';
 
 class ApiClient {
+  static const _timeout = Duration(seconds: 15);
+
+  static Future<T> _guard<T>(Future<T> future, String op) {
+    return future.timeout(_timeout, onTimeout: () {
+      throw Exception('$op timeout setelah ${_timeout.inSeconds}s');
+    });
+  }
+
   Future<List<dynamic>> getReports({String? status}) async {
     final t = await AuthService.instance.getToken();
 
@@ -17,12 +25,15 @@ class ApiClient {
       path += '?status=${status.toLowerCase()}';
     }
 
-    final res = await http.get(
-      api(path),
-      headers: {
-        'Accept': 'application/json',
-        if (t != null) 'Authorization': 'Bearer $t',
-      },
+    final res = await _guard(
+      http.get(
+        api(path),
+        headers: {
+          'Accept': 'application/json',
+          if (t != null) 'Authorization': 'Bearer $t',
+        },
+      ),
+      'GET /api/reports',
     );
     if (res.statusCode != 200) {
       throw Exception('GET /api/reports gagal: ${res.statusCode} ${res.body}');
@@ -41,7 +52,7 @@ class ApiClient {
     final req = http.MultipartRequest('POST', api('/api/reports'))
       ..headers['Accept'] = 'application/json'
       ..headers['Authorization'] =
-          'Bearer ' + ((await AuthService.instance.getToken()) ?? '')
+          'Bearer ${(await AuthService.instance.getToken()) ?? ''}'
       ..fields.addAll({
         'judul': judul,
         'deskripsi': deskripsi,
@@ -59,7 +70,7 @@ class ApiClient {
       }
     }
 
-    final sent = await req.send();
+    final sent = await _guard(req.send(), 'POST /api/reports');
     final res = await http.Response.fromStream(sent);
 
     if (res.statusCode != 201 && res.statusCode != 200) {
@@ -102,7 +113,7 @@ class ApiClient {
       }
     }
 
-    final sent = await req.send();
+    final sent = await _guard(req.send(), 'POST update status');
     final res = await http.Response.fromStream(sent);
 
     if (res.statusCode != 200) {
@@ -113,12 +124,15 @@ class ApiClient {
 
   Future<void> deleteReport(int id) async {
     final t = await AuthService.instance.getToken();
-    final res = await http.delete(
-      api('/api/reports/$id'),
-      headers: {
-        'Accept': 'application/json',
-        if (t != null) 'Authorization': 'Bearer $t',
-      },
+    final res = await _guard(
+      http.delete(
+        api('/api/reports/$id'),
+        headers: {
+          'Accept': 'application/json',
+          if (t != null) 'Authorization': 'Bearer $t',
+        },
+      ),
+      'DELETE /api/reports/$id',
     );
     if (res.statusCode != 200) {
       throw Exception('DELETE gagal: ${res.statusCode} ${res.body}');
@@ -127,12 +141,15 @@ class ApiClient {
 
   Future<String> clearAllReports() async {
     final t = await AuthService.instance.getToken();
-    final res = await http.post(
-      api('/api/admin/clear-all-reports'),
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': 'Bearer ${t ?? ''}',
-      },
+    final res = await _guard(
+      http.post(
+        api('/api/admin/clear-all-reports'),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer ${t ?? ''}',
+        },
+      ),
+      'POST /api/admin/clear-all-reports',
     );
 
     if (res.statusCode != 200) {

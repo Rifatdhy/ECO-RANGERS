@@ -6,6 +6,7 @@ import '../models/user.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../ui/app_theme.dart';
+import '../ui/status_info.dart';
 import 'auth_page.dart';
 import 'buat_laporan_page.dart';
 import 'laporan_detail_page.dart';
@@ -416,7 +417,7 @@ class _DashboardUserPageState extends State<DashboardUserPage> {
   }
 
   Widget _buildLaporanCard(Laporan laporan) {
-    final statusColor = _getStatusColor(laporan.status);
+    final stColor = statusColor(laporan.status);
 
     return Card(
       color: Theme.of(context).colorScheme.surface,
@@ -442,12 +443,12 @@ class _DashboardUserPageState extends State<DashboardUserPage> {
                     height: 48,
                     width: 48,
                     decoration: BoxDecoration(
-                      color: statusColor.withValues(alpha: 0.12),
+                      color: stColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Icon(
                       Icons.report_problem_outlined,
-                      color: statusColor,
+                      color: stColor,
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -480,7 +481,7 @@ class _DashboardUserPageState extends State<DashboardUserPage> {
                   Chip(
                     label: Text(laporan.status),
                     labelStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                    backgroundColor: statusColor,
+                    backgroundColor: stColor,
                     side: BorderSide.none,
                   ),
                   const Spacer(),
@@ -497,21 +498,6 @@ class _DashboardUserPageState extends State<DashboardUserPage> {
         ),
       ),
     );
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'pending':
-        return Colors.orange;
-      case 'diproses':
-        return AppTheme.industrialSilver;
-      case 'selesai':
-        return Colors.green;
-      case 'ditolak':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
   }
 }
 

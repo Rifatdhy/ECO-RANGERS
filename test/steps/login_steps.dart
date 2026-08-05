@@ -1,4 +1,3 @@
-import 'package:flutter_gherkin/flutter_gherkin.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gherkin/gherkin.dart';
 
@@ -15,12 +14,12 @@ class GivenIAmOnTheLoginPage extends Given {
 
 class WhenIEnterMyUsernameAndPassword extends When2<String, String> {
   @override
-  Future<void> executeStep(String username, String password) async {
-    // Implementasi untuk memasukkan username dan password
+  Future<void> executeStep(String email, String password) async {
+    // Implementasi untuk memasukkan email dan password
     // Contoh: 
-    // await driver.tap(find.byValueKey('username-field'));
-    // await driver.enterText(username);
-    // await driver.tap(find.byValueKey('password-field'));
+    // await driver.tap(find.byValueKey('login-email'));
+    // await driver.enterText(email);
+    // await driver.tap(find.byValueKey('login-password'));
     // await driver.enterText(password);
   }
 

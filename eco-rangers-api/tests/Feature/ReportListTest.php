@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
 use App\Models\User;
 use App\Models\Report;
 
@@ -16,14 +17,14 @@ class ReportListTest extends TestCase
     {
         // GIVEN ada beberapa laporan di database
         $user = User::factory()->create();
-        Report::factory()->count(3)->create();
+        Report::factory()->count(3)->create(['user_id' => $user->id]);
 
         // WHEN user mengambil semua laporan
-        $response = $this->actingAs($user, 'api')
-                         ->getJson('/api/reports');
+        Sanctum::actingAs($user);
+        $response = $this->getJson('/api/reports');
 
         // THEN server mengembalikan status 200 dan daftar laporan
         $response->assertStatus(200)
-                 ->assertJsonStructure([['id', 'title', 'description']]);
+                 ->assertJsonStructure([['id', 'judul', 'deskripsi']]);
     }
 }

@@ -128,7 +128,7 @@ class _UpdateStatusPageState extends State<UpdateStatusPage> {
 
   Widget _buildStatusDropdown() {
     return DropdownButtonFormField<String>(
-      value: _selectedStatus,
+      initialValue: _selectedStatus,
       decoration: const InputDecoration(
         labelText: 'Status Laporan',
         prefixIcon: Icon(Icons.flag_outlined),

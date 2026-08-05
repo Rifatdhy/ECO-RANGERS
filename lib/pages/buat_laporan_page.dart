@@ -54,7 +54,7 @@ class _BuatLaporanPageState extends State<BuatLaporanPage> {
       if (perm == LocationPermission.deniedForever) throw 'Izin lokasi ditolak permanen';
       if (perm == LocationPermission.denied) throw 'Izin lokasi ditolak';
 
-      final p = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      final p = await Geolocator.getCurrentPosition(locationSettings: const LocationSettings(accuracy: LocationAccuracy.high));
       setState(() {
         _lat = p.latitude;
         _lng = p.longitude;

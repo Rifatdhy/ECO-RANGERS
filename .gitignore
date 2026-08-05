@@ -17,9 +17,15 @@ vendor/
 node_modules/
 public/storage/
 storage/*.key
-# .env DI-UNCOMMENT AGAR TERUPLOAD
-# .env
-.env.*.backup
+
+# ---- Env / Secret ----
+.env
+.env.*
+!.env.example
+
+# ---- Tooling lokal ----
+.opencode/
+opencode.json
 
 # ---- OS / Editor ----
 *.log

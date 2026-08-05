@@ -6,7 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../locator.dart';
 import '../models/laporan.dart';
-import '../ui/app_theme.dart';
+import '../ui/status_info.dart';
 import 'update_status_page.dart';
 
 class LaporanDetailPage extends StatefulWidget {
@@ -36,6 +36,7 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
       ),
     );
     if (result == true) {
+      if (!mounted) return;
       Navigator.pop(context, true);
     }
   }
@@ -54,22 +55,10 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
     if (await canLaunchUrl(Uri.parse(url))) {
       await launchUrl(Uri.parse(url));
     } else {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Tidak dapat membuka Google Maps')),
       );
-    }
-  }
-
-  ({Color color, IconData icon, String text}) _getStatusInfo(String status) {
-    switch (status.toLowerCase()) {
-      case 'selesai':
-        return (color: Colors.green, icon: Icons.check_circle, text: 'Selesai');
-      case 'diproses':
-        return (color: Colors.orange, icon: Icons.hourglass_bottom, text: 'Diproses');
-      case 'ditolak':
-        return (color: Colors.red, icon: Icons.cancel, text: 'Ditolak');
-      default: // pending
-        return (color: Colors.grey, icon: Icons.pending, text: 'Pending');
     }
   }
 
@@ -119,7 +108,7 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
   }
 
   Widget _buildInfoCard(TextTheme textTheme) {
-    final statusInfo = _getStatusInfo(_currentLaporan.status);
+    final info = statusInfo(_currentLaporan.status);
 
     return Card(
       child: Padding(
@@ -128,9 +117,9 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Chip(
-              avatar: Icon(statusInfo.icon, color: Colors.white, size: 18),
-              label: Text(statusInfo.text.toUpperCase()),
-              backgroundColor: statusInfo.color,
+              avatar: Icon(info.icon, color: Colors.white, size: 18),
+              label: Text(info.text.toUpperCase()),
+              backgroundColor: info.color,
               labelStyle: textTheme.labelLarge?.copyWith(fontSize: 14),
             ),
             const SizedBox(height: 16),
@@ -249,7 +238,7 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
   }
 
   Widget _buildHistoryTile(ReportUpdate update, bool isLast, TextTheme textTheme) {
-    final statusInfo = _getStatusInfo(update.status);
+    final info = statusInfo(update.status);
 
     return IntrinsicHeight(
       child: Row(
@@ -259,9 +248,9 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
               Container(
                 width: 20, height: 20,
                 decoration: BoxDecoration(
-                  color: statusInfo.color,
+                  color: info.color,
                   shape: BoxShape.circle,
-                  border: Border.all(color: Theme.of(context).colorScheme.background, width: 3),
+                  border: Border.all(color: Theme.of(context).colorScheme.surface, width: 3),
                 ),
               ),
               if (!isLast) Expanded(child: Container(width: 2, color: Colors.grey[300])),
@@ -274,7 +263,7 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Status: ${update.status.toUpperCase()}', style: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold, color: statusInfo.color)),
+                  Text('Status: ${update.status.toUpperCase()}', style: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold, color: info.color)),
                   const SizedBox(height: 4),
                   Text(DateFormat('dd MMMM yyyy, HH:mm').format(update.createdAt), style: textTheme.bodySmall),
                   if (update.keterangan != null && update.keterangan!.isNotEmpty)

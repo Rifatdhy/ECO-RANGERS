@@ -24,4 +24,15 @@ class ReportUpdate extends Model
     {
         return $this->belongsTo(Report::class);
     }
+
+    protected static function booted()
+    {
+        static::saving(function ($update) {
+            $status = strtolower(trim($update->status ?: ''));
+            if ($status === 'resolved') {
+                $status = 'selesai';
+            }
+            $update->status = $status;
+        });
+    }
 }

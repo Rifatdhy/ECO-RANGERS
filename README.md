@@ -27,7 +27,7 @@
 - **DevicePreview** — Preview responsif saat debugging
 
 ### Backend (API)
-- **Laravel 11** — Framework PHP
+- **Laravel 12** — Framework PHP
 - **SQLite / MySQL** — Database
 - **Sanctum** — Autentikasi API token
 - **Laravel Dusk** — Browser testing
@@ -147,7 +147,8 @@ Setelah menjalankan `php artisan migrate --seed`, akun berikut tersedia:
 | Role | Email | Password |
 |------|-------|----------|
 | **Admin** | `admin@gmail.com` | `12345678` |
-| **User** *(jika ada seeder)* | *(tergantung seeder)* | *(tergantung seeder)* |
+
+> Kredensial admin bisa diubah via `ADMIN_EMAIL` dan `ADMIN_PASSWORD` di `eco-rangers-api/.env`.
 
 ---
 

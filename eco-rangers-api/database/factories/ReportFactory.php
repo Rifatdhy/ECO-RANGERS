@@ -10,7 +10,7 @@ class ReportFactory extends Factory
     public function definition(): array
     {
         return [
-            'user_id' => User::all()->random()->id,
+            'user_id' => User::inRandomOrder()->value('id'),
             'judul' => $this->faker->sentence(3),
             'deskripsi' => $this->faker->paragraph(),
             'lokasi_text' => $this->faker->city(),

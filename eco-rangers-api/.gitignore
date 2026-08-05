@@ -21,5 +21,8 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
-# .env DI-UNCOMMENT AGAR TERUPLOAD
-# .env
+
+# Env / Secret
+/.env
+/.env.*
+!/.env.example

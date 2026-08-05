@@ -15,10 +15,10 @@ Route::post('/admin/login', [AdminAuthController::class, 'login']);
 // pembuatan data yang diperlukan selama pengujian acceptance.
 if (app()->environment(['local', 'testing'])) {
     Route::post('/testing/seed-admin', function () {
-        // Buat atau perbarui admin dengan email admin@gmail.com
-        $email = 'admin@gmail.com';
+        // Buat atau perbarui admin dengan email dari env
+        $email = env('ADMIN_EMAIL', 'admin@gmail.com');
         $username = 'admin';
-        $password = '12345678';
+        $password = env('ADMIN_PASSWORD', '12345678');
 
         $user = \App\Models\User::updateOrCreate(
             ['email' => $email],
