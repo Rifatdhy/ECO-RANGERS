@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'auth_page.dart';
 import 'dashboard_admin_page.dart';
-import 'dashboard_user_page.dart';
+import 'main_shell.dart';
 import '../services/auth_service.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -56,7 +56,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     final user = await AuthService.instance.getMe();
     if (mounted) {
       if (user != null) {
-        page = user.isAdmin ? const DashboardAdminPage() : const DashboardUserPage();
+        page = user.isAdmin ? const DashboardAdminPage() : const MainShell();
       }
       Navigator.pushReplacement(
         context,

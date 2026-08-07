@@ -1,12 +1,14 @@
 import 'package:eco_rangers/models/report_update.dart';
 import 'package:eco_rangers/pages/photo_viewer_page.dart';
 import 'package:eco_rangers/services/auth_service.dart';
+import 'package:eco_rangers/ui/widgets/status_badge.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../locator.dart';
 import '../models/laporan.dart';
 import '../ui/status_info.dart';
+import '../ui/tokens.dart';
 import 'update_status_page.dart';
 
 class LaporanDetailPage extends StatefulWidget {
@@ -84,8 +86,26 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
                   child: Hero(
                     tag: _currentLaporan.fotoUrl!,
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(_currentLaporan.fotoUrl!, fit: BoxFit.cover, height: 220),
+                      borderRadius: BorderRadius.circular(24),
+                      child: Image.network(
+                        _currentLaporan.fotoUrl!,
+                        fit: BoxFit.cover,
+                        height: 220,
+                        loadingBuilder: (_, child, progress) => progress == null
+                            ? child
+                            : Container(
+                                height: 220,
+                                color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                                child: const Center(
+                                  child: CircularProgressIndicator(strokeWidth: 2.5),
+                                ),
+                              ),
+                        errorBuilder: (_, __, ___) => Container(
+                          height: 220,
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                          child: const Icon(Icons.broken_image_outlined, size: 48, color: AppColors.textMuted),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -108,20 +128,13 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
   }
 
   Widget _buildInfoCard(TextTheme textTheme) {
-    final info = statusInfo(_currentLaporan.status);
-
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Chip(
-              avatar: Icon(info.icon, color: Colors.white, size: 18),
-              label: Text(info.text.toUpperCase()),
-              backgroundColor: info.color,
-              labelStyle: textTheme.labelLarge?.copyWith(fontSize: 14),
-            ),
+            StatusBadge(status: _currentLaporan.status),
             const SizedBox(height: 16),
             _buildInfoRow(Icons.person_outline, 'Pelapor', '${_currentLaporan.user?.name ?? _currentLaporan.user?.username ?? 'N/A'} (${_currentLaporan.user?.email ?? 'N/A'})', textTheme),
             const Divider(height: 24),
@@ -176,14 +189,14 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
                 Text(
                   _currentLaporan.lokasiText ?? 'Lokasi tidak tersedia',
                   style: textTheme.bodyLarge?.copyWith(
-                    color: hasCoordinates ? Colors.blue : null,
+                    color: hasCoordinates ? const Color(0xFF2E7D32) : null,
                     decoration: hasCoordinates ? TextDecoration.underline : null,
                   ),
                 ),
               ],
             ),
           ),
-          if(hasCoordinates) const Icon(Icons.open_in_new, color: Colors.blue, size: 18),
+          if(hasCoordinates) const Icon(Icons.open_in_new, color: Color(0xFF2E7D32), size: 18),
         ],
       ),
     );

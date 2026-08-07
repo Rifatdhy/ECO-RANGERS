@@ -1,27 +1,25 @@
+import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'tokens.dart';
+
 class AppTheme {
-  static const Color primaryColor = Color(0xFFE5E7EB);
-  static const Color secondaryColor = Color(0xFF9CA3AF);
-  static const Color accentColor = Color(0xFFF59E0B);
+  static const Color primaryColor = AppColors.primary;
+  static const Color secondaryColor = AppColors.secondary;
+  static const Color accentColor = AppColors.accent;
 
-  static const Color lightBackgroundColor = Color(0xFFF4F5F7);
-  static const Color lightSurfaceColor = Color(0xFFFFFFFF);
-  static const Color lightSurfaceAltColor = Color(0xFFF1F2F4);
-  static const Color lightTextColor = Color(0xFF111827);
-  static const Color lightMutedTextColor = Color(0xFF6B7280);
+  static const Color lightBackgroundColor = AppColors.background;
+  static const Color lightSurfaceColor = AppColors.surface;
+  static const Color lightSurfaceAltColor = Color(0xFFF0F5F0);
+  static const Color lightTextColor = AppColors.text;
+  static const Color lightMutedTextColor = AppColors.textMuted;
 
-  static const Color darkBackgroundColor = Color(0xFF0B0D10);
-  static const Color darkSurfaceColor = Color(0xFF13161B);
-  static const Color darkSurfaceAltColor = Color(0xFF1A1E24);
-  static const Color darkTextColor = Color(0xFFF3F4F6);
-  static const Color darkMutedTextColor = Color(0xFF9CA3AF);
-
-  static const Color industrialBlack = Color(0xFF050608);
-  static const Color industrialCharcoal = Color(0xFF161A21);
-  static const Color industrialSteel = Color(0xFF2A2F39);
-  static const Color industrialSilver = Color(0xFFD1D5DB);
+  static const Color darkBackgroundColor = Color(0xFF0F1512);
+  static const Color darkSurfaceColor = Color(0xFF16201A);
+  static const Color darkSurfaceAltColor = Color(0xFF1E2A22);
+  static const Color darkTextColor = Color(0xFFF2F5F2);
+  static const Color darkMutedTextColor = Color(0xFF9AB09E);
 
   static TextTheme _getTextTheme(bool isDark) {
     final textColor = isDark ? darkTextColor : lightTextColor;
@@ -32,16 +30,16 @@ class AppTheme {
         displayLarge: TextStyle(
           fontWeight: FontWeight.w800,
           color: textColor,
-          fontSize: 44,
-          letterSpacing: -1.2,
-          height: 1.0,
+          fontSize: 40,
+          letterSpacing: -1.1,
+          height: 1.05,
         ),
         headlineMedium: TextStyle(
           fontWeight: FontWeight.w800,
           color: textColor,
-          fontSize: 30,
-          letterSpacing: -0.8,
-          height: 1.06,
+          fontSize: 28,
+          letterSpacing: -0.7,
+          height: 1.1,
         ),
         headlineSmall: TextStyle(
           fontWeight: FontWeight.w700,
@@ -58,7 +56,7 @@ class AppTheme {
         titleMedium: TextStyle(
           fontWeight: FontWeight.w600,
           color: textColor,
-          fontSize: 17,
+          fontSize: 16,
         ),
         bodyLarge: TextStyle(
           color: textColor,
@@ -79,130 +77,133 @@ class AppTheme {
           fontWeight: FontWeight.w700,
           color: textColor,
           fontSize: 14,
-          letterSpacing: 0.15,
+          letterSpacing: 0.1,
+        ),
+        labelMedium: TextStyle(
+          fontWeight: FontWeight.w600,
+          color: mutedTextColor,
+          fontSize: 12,
         ),
       ),
     );
   }
 
-  static ThemeData get lightTheme {
-    final textTheme = _getTextTheme(false);
+  static ThemeData get lightTheme => _build(Brightness.light);
+
+  static ThemeData get darkTheme => _build(Brightness.dark);
+
+  static ThemeData _build(Brightness brightness) {
+    final isDark = brightness == Brightness.dark;
+    final textTheme = _getTextTheme(isDark);
+
+    final colorScheme = isDark
+        ? const ColorScheme.dark(
+            primary: AppColors.accent,
+            onPrimary: Color(0xFF123018),
+            secondary: AppColors.secondary,
+            tertiary: AppColors.warning,
+            surface: Color(0xFF16201A),
+            onSurface: Color(0xFFF2F5F2),
+            error: AppColors.error,
+          )
+        : const ColorScheme.light(
+            primary: AppColors.primary,
+            onPrimary: AppColors.onPrimary,
+            secondary: AppColors.secondary,
+            onSecondary: AppColors.onPrimary,
+            tertiary: AppColors.accent,
+            surface: AppColors.surface,
+            onSurface: AppColors.text,
+            error: AppColors.error,
+          );
 
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.light,
-      primaryColor: industrialBlack,
-      scaffoldBackgroundColor: lightBackgroundColor,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: industrialBlack,
-        primary: industrialBlack,
-        secondary: industrialSteel,
-        tertiary: accentColor,
-        surface: lightSurfaceColor,
-        surfaceContainerHighest: lightSurfaceAltColor,
-        onPrimary: Colors.white,
-        onSecondary: Colors.white,
-        onSurface: lightTextColor,
-        brightness: Brightness.light,
-      ),
+      brightness: brightness,
+      colorScheme: colorScheme,
+      scaffoldBackgroundColor: isDark ? darkBackgroundColor : AppColors.background,
       textTheme: textTheme,
+      splashFactory: InkRipple.splashFactory,
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.linux: FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+        },
+      ),
       appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
-        foregroundColor: lightTextColor,
+        foregroundColor: isDark ? darkTextColor : lightTextColor,
         elevation: 0,
         centerTitle: false,
         titleTextStyle: textTheme.titleLarge,
+        iconTheme: IconThemeData(color: isDark ? darkTextColor : lightTextColor),
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: industrialBlack,
+        backgroundColor: isDark ? darkSurfaceAltColor : AppColors.text,
         contentTextStyle: textTheme.bodyMedium?.copyWith(color: Colors.white),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
         behavior: SnackBarBehavior.floating,
       ),
       cardTheme: CardThemeData(
         elevation: 0,
-        color: lightSurfaceColor,
+        color: isDark ? darkSurfaceColor : AppColors.surface,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        shadowColor: Colors.black.withValues(alpha: 0.06),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xl)),
+        margin: EdgeInsets.zero,
       ),
-      inputDecorationTheme: _inputDecorationTheme(false),
-      elevatedButtonTheme: _elevatedButtonTheme(false),
-      filledButtonTheme: _filledButtonTheme(false),
-      outlinedButtonTheme: _outlinedButtonTheme(false),
-      chipTheme: _chipTheme(false),
+      inputDecorationTheme: _inputDecorationTheme(isDark),
+      elevatedButtonTheme: _elevatedButtonTheme(isDark),
+      filledButtonTheme: _filledButtonTheme(isDark),
+      outlinedButtonTheme: _outlinedButtonTheme(isDark),
+      chipTheme: _chipTheme(isDark),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: isDark ? darkSurfaceColor : AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        indicatorColor: AppColors.accent.withValues(alpha: 0.28),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return textTheme.labelMedium?.copyWith(
+            color: selected ? (isDark ? AppColors.accent : AppColors.primary) : (isDark ? darkMutedTextColor : lightMutedTextColor),
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+          );
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return IconThemeData(
+            color: selected ? (isDark ? AppColors.accent : AppColors.primary) : (isDark ? darkMutedTextColor : lightMutedTextColor),
+          );
+        }),
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        elevation: AppElevation.lg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+      ),
       tabBarTheme: TabBarThemeData(
-        labelColor: industrialBlack,
+        labelColor: AppColors.primary,
         unselectedLabelColor: lightMutedTextColor,
         dividerColor: Colors.transparent,
         indicator: BoxDecoration(
-          color: industrialBlack,
-          borderRadius: BorderRadius.circular(999),
+          color: AppColors.accent.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(AppRadius.md),
         ),
         labelStyle: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
         unselectedLabelStyle: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
       ),
-    );
-  }
-
-  static ThemeData get darkTheme {
-    final textTheme = _getTextTheme(true);
-
-    return ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.dark,
-      primaryColor: industrialSilver,
-      scaffoldBackgroundColor: darkBackgroundColor,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: industrialSilver,
-        primary: industrialSilver,
-        secondary: secondaryColor,
-        tertiary: accentColor,
-        surface: darkSurfaceColor,
-        surfaceContainerHighest: darkSurfaceAltColor,
-        onPrimary: industrialBlack,
-        onSecondary: Colors.white,
-        onSurface: darkTextColor,
-        brightness: Brightness.dark,
+      dividerTheme: DividerThemeData(
+        color: (isDark ? darkMutedTextColor : lightMutedTextColor).withValues(alpha: 0.18),
+        space: 1,
+        thickness: 1,
       ),
-      textTheme: textTheme,
-      appBarTheme: AppBarTheme(
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        foregroundColor: darkTextColor,
-        elevation: 0,
-        centerTitle: false,
-        titleTextStyle: textTheme.titleLarge,
-      ),
-      snackBarTheme: SnackBarThemeData(
-        backgroundColor: darkSurfaceAltColor,
-        contentTextStyle: textTheme.bodyMedium?.copyWith(color: darkTextColor),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        behavior: SnackBarBehavior.floating,
-      ),
-      cardTheme: CardThemeData(
-        elevation: 0,
-        color: darkSurfaceColor,
-        surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      ),
-      inputDecorationTheme: _inputDecorationTheme(true),
-      elevatedButtonTheme: _elevatedButtonTheme(true),
-      filledButtonTheme: _filledButtonTheme(true),
-      outlinedButtonTheme: _outlinedButtonTheme(true),
-      chipTheme: _chipTheme(true),
-      tabBarTheme: TabBarThemeData(
-        labelColor: industrialSilver,
-        unselectedLabelColor: darkMutedTextColor,
-        dividerColor: Colors.transparent,
-        indicator: BoxDecoration(
-          color: industrialSilver.withValues(alpha: 0.14),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        labelStyle: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
-        unselectedLabelStyle: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: AppColors.primary,
       ),
     );
   }
@@ -212,66 +213,60 @@ class AppTheme {
       filled: true,
       fillColor: isDark ? darkSurfaceAltColor : lightSurfaceAltColor,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         borderSide: BorderSide.none,
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         borderSide: BorderSide(
-          color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.06),
+          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.07),
         ),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(20),
-        borderSide: const BorderSide(color: industrialBlack, width: 1.8),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderSide: const BorderSide(color: AppColors.primary, width: 1.8),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(20),
-        borderSide: const BorderSide(color: Colors.redAccent, width: 1.4),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderSide: const BorderSide(color: AppColors.error, width: 1.4),
       ),
       focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(20),
-        borderSide: const BorderSide(color: Colors.redAccent, width: 1.8),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderSide: const BorderSide(color: AppColors.error, width: 1.8),
       ),
       labelStyle: TextStyle(color: isDark ? darkMutedTextColor : lightMutedTextColor),
       hintStyle: TextStyle(color: isDark ? darkMutedTextColor : lightMutedTextColor),
       prefixIconColor: isDark ? darkMutedTextColor : lightMutedTextColor,
       suffixIconColor: isDark ? darkMutedTextColor : lightMutedTextColor,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
     );
   }
 
   static ElevatedButtonThemeData _elevatedButtonTheme(bool isDark) {
+    final bg = isDark ? AppColors.accent : AppColors.primary;
     return ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: isDark ? industrialSilver : industrialBlack,
-        foregroundColor: isDark ? industrialBlack : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-        textStyle: GoogleFonts.inter(
-          fontWeight: FontWeight.w700,
-          fontSize: 15,
-          letterSpacing: 0.15,
-        ),
-        minimumSize: const Size(double.infinity, 54),
+        backgroundColor: bg,
+        foregroundColor: isDark ? const Color(0xFF123018) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md, horizontal: AppSpacing.xl),
+        textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15),
+        minimumSize: const Size(double.infinity, 52),
         elevation: 0,
       ),
     );
   }
 
   static FilledButtonThemeData _filledButtonTheme(bool isDark) {
+    final bg = isDark ? AppColors.accent : AppColors.primary;
     return FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        backgroundColor: isDark ? industrialSilver : industrialBlack,
-        foregroundColor: isDark ? industrialBlack : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-        textStyle: GoogleFonts.inter(
-          fontWeight: FontWeight.w700,
-          fontSize: 15,
-          letterSpacing: 0.15,
-        ),
-        minimumSize: const Size(double.infinity, 54),
+        backgroundColor: bg,
+        foregroundColor: isDark ? const Color(0xFF123018) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md, horizontal: AppSpacing.xl),
+        textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15),
+        minimumSize: const Size(double.infinity, 52),
       ),
     );
   }
@@ -279,14 +274,11 @@ class AppTheme {
   static OutlinedButtonThemeData _outlinedButtonTheme(bool isDark) {
     return OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        foregroundColor: isDark ? darkTextColor : lightTextColor,
-        side: BorderSide(color: isDark ? Colors.white.withValues(alpha: 0.14) : Colors.black.withValues(alpha: 0.12)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-        textStyle: GoogleFonts.inter(
-          fontWeight: FontWeight.w700,
-          fontSize: 15,
-        ),
+        foregroundColor: AppColors.primary,
+        side: const BorderSide(color: AppColors.primary),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md, horizontal: AppSpacing.xl),
+        textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15),
       ),
     );
   }
@@ -294,14 +286,16 @@ class AppTheme {
   static ChipThemeData _chipTheme(bool isDark) {
     return ChipThemeData(
       backgroundColor: isDark ? darkSurfaceAltColor : lightSurfaceAltColor,
-      selectedColor: isDark ? industrialSilver.withValues(alpha: 0.18) : industrialBlack.withValues(alpha: 0.08),
+      selectedColor: AppColors.accent.withValues(alpha: 0.24),
       labelStyle: GoogleFonts.inter(
         fontSize: 13,
         fontWeight: FontWeight.w600,
         color: isDark ? darkTextColor : lightTextColor,
       ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-      side: BorderSide(color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.08)),
+      side: BorderSide(
+        color: (isDark ? darkMutedTextColor : AppColors.primary).withValues(alpha: 0.15),
+      ),
     );
   }
 }

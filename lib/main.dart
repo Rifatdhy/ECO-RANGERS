@@ -37,7 +37,7 @@ class EcoRangersApp extends StatelessWidget {
       title: 'Eco Rangers',
       debugShowCheckedModeBanner: false,
       
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.light,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       

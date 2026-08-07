@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import '../locator.dart';
 import '../services/auth_service.dart';
 import 'dashboard_admin_page.dart';
-import 'dashboard_user_page.dart';
+import 'main_shell.dart';
 
 class AuthPage extends StatefulWidget {
   const AuthPage({super.key});
@@ -105,7 +105,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
   void _handleLoginSuccess(bool isAdmin) {
     if (!mounted) return;
     final pageRoute = MaterialPageRoute(
-      builder: (_) => isAdmin ? const DashboardAdminPage() : const DashboardUserPage(),
+      builder: (_) => isAdmin ? const DashboardAdminPage() : const MainShell(),
     );
     Navigator.pushReplacement(context, pageRoute);
   }
@@ -131,11 +131,11 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
         decoration: BoxDecoration(
           gradient: RadialGradient(
             center: const Alignment(-0.85, -0.95),
-            radius: 1.25,
+            radius: 1.5,
             colors: [
-              AppTheme.industrialSteel.withValues(alpha: 0.45),
-              AppTheme.industrialBlack,
-              const Color(0xFF0D1016),
+              AppTheme.accentColor.withValues(alpha: 0.18),
+              AppTheme.lightSurfaceAltColor,
+              AppTheme.lightBackgroundColor,
             ],
             stops: const [0.0, 0.55, 1.0],
           ),
@@ -224,12 +224,12 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppTheme.industrialBlack,
-            AppTheme.industrialCharcoal,
-            AppTheme.industrialSteel.withValues(alpha: 0.95),
+            AppTheme.primaryColor,
+            const Color(0xFF2E7D32),
+            const Color(0xFF66BB6A).withValues(alpha: 0.85),
           ],
         ),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.28),
@@ -246,8 +246,8 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
                   right: -12,
                   top: -12,
                   child: _OrbitBadge(
-                    icon: Icons.construction_outlined,
-                    label: 'Industrial flow',
+                    icon: Icons.eco_outlined,
+                    label: 'Alur ramah lingkungan',
                     accent: Colors.white.withValues(alpha: 0.10),
                   ),
                 ),
@@ -255,8 +255,8 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
                   left: -18,
                   bottom: -18,
                   child: _OrbitBadge(
-                    icon: Icons.shield_outlined,
-                    label: 'Verified reports',
+                    icon: Icons.verified_outlined,
+                    label: 'Laporan terverifikasi',
                     accent: Colors.white.withValues(alpha: 0.08),
                   ),
                 ),
@@ -289,7 +289,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
                       children: const [
                         _FeaturePill(label: 'Foto + lokasi'),
                         _FeaturePill(label: 'Status laporan'),
-                        _FeaturePill(label: 'Admin & warga'),
+                        _FeaturePill(label: 'Warga & admin'),
                       ],
                     ),
                     const SizedBox(height: 24),
@@ -309,7 +309,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
                               color: Colors.white.withValues(alpha: 0.18),
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.shield_outlined, color: Colors.white),
+                            child: const Icon(Icons.verified_outlined, color: Colors.white),
                           ),
                           const SizedBox(width: 14),
                           Expanded(
@@ -317,7 +317,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Laporan yang lebih cepat dibaca.',
+                                  'Temuan tersampaikan ke pihak berwenang.',
                                   style: textTheme.titleMedium?.copyWith(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w700,
@@ -325,7 +325,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  'Jalur masuk yang ringan, jelas, dan siap dipakai di lapangan.',
+                                  'Setiap laporan langsung terpantau dan ditindaklanjuti.',
                                   style: textTheme.bodyMedium?.copyWith(
                                     color: Colors.white.withValues(alpha: 0.86),
                                   ),
@@ -350,13 +350,13 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
                   runSpacing: 8,
                   children: const [
                     _OrbitBadge(
-                      icon: Icons.construction_outlined,
-                      label: 'Industrial flow',
+                      icon: Icons.eco_outlined,
+                      label: 'Alur ramah lingkungan',
                       accent: Color.fromRGBO(255, 255, 255, 0.10),
                     ),
                     _OrbitBadge(
-                      icon: Icons.shield_outlined,
-                      label: 'Verified reports',
+                      icon: Icons.verified_outlined,
+                      label: 'Laporan terverifikasi',
                       accent: Color.fromRGBO(255, 255, 255, 0.08),
                     ),
                   ],
@@ -386,7 +386,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
                   children: const [
                     _FeaturePill(label: 'Foto + lokasi'),
                     _FeaturePill(label: 'Status laporan'),
-                    _FeaturePill(label: 'Admin & warga'),
+                    _FeaturePill(label: 'Warga & admin'),
                   ],
                 ),
                 const SizedBox(height: 18),
@@ -406,7 +406,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
                           color: Colors.white.withValues(alpha: 0.18),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.shield_outlined, color: Colors.white, size: 20),
+                        child: const Icon(Icons.verified_outlined, color: Colors.white, size: 20),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -414,7 +414,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Laporan yang lebih cepat dibaca.',
+                              'Temuan tersampaikan ke pihak berwenang.',
                               style: textTheme.titleSmall?.copyWith(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w700,
@@ -422,7 +422,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
                             ),
                             const SizedBox(height: 3),
                             Text(
-                              'Jalur masuk yang ringan, jelas, dan siap dipakai di lapangan.',
+                              'Setiap laporan langsung terpantau dan ditindaklanjuti.',
                               style: textTheme.bodySmall?.copyWith(
                                 color: Colors.white.withValues(alpha: 0.86),
                                 height: 1.35,
