@@ -34,3 +34,9 @@ Thumbs.db
 .idea/
 *.iml
 .flutter-plugins-dependencies
+
+# ---- Test/screenshot artifacts ----
+.playwright-mcp/
+*.png
+*.jpg
+*.jpeg

@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 
 abstract final class AppColors {
-  static const background = Color(0xFFF8FAF8);
+  static const background = Color(0xFFF2F2F7); // iOS grouped background (light)
   static const primary = Color(0xFF2E7D32);
   static const secondary = Color(0xFF43A047);
   static const accent = Color(0xFF81C784);
   static const surface = Color(0xFFFFFFFF);
-  static const text = Color(0xFF1B1B1B);
-  static const textMuted = Color(0xFF6B7280);
-  static const success = Color(0xFF00C853);
-  static const warning = Color(0xFFF9A825);
-  static const error = Color(0xFFD32F2F);
+  static const text = Color(0xFF1C1C1E); // iOS label primary
+  static const textMuted = Color(0xFF3C3C43); // iOS secondary label
+  static const success = Color(0xFF34C759); // iOS system green
+  static const warning = Color(0xFFFF9500); // iOS system orange
+  static const error = Color(0xFFFF3B30); // iOS system red
   static const onPrimary = Color(0xFFFFFFFF);
 }
 

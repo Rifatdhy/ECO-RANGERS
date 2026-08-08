@@ -1,4 +1,4 @@
-package com.example.eco_rangers
+package com.ecorangers.app
 
 import io.flutter.embedding.android.FlutterActivity
 

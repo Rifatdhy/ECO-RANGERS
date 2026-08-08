@@ -6,6 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'config.dart';
 import 'locator.dart';
 import 'pages/splash_screen.dart';
+import 'session.dart';
 import 'ui/app_theme.dart';
 
 Future<void> main() async {
@@ -31,13 +32,14 @@ class EcoRangersApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       // FIX: Mengaktifkan kembali konfigurasi DevicePreview
+      navigatorKey: rootNavigatorKey,
       locale: DevicePreview.locale(context),
       builder: DevicePreview.appBuilder,
       
       title: 'Eco Rangers',
       debugShowCheckedModeBanner: false,
       
-      themeMode: ThemeMode.light,
+      themeMode: ThemeMode.system, // ikut mode gelap/terang sistem (ala iOS)
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       

@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import '../config.dart';
@@ -11,6 +13,10 @@ class AuthService {
 
   static const _tokenKey = 'token';
   static const _userKey = 'current_user';
+  // Di web tidak ada keystore OS; gunakan SharedPreferences (sama saja
+  // dengan localStorage). Di platform native baru benar-benar aman.
+  static const _storage = FlutterSecureStorage();
+  static bool get _useSecureStorage => !kIsWeb;
 
   User? _currentUser;
   User? get currentUser => _currentUser;
@@ -35,8 +41,8 @@ class AuthService {
     );
     final data = _decode(res.body);
     if (res.statusCode >= 200 && res.statusCode < 300) {
+      await _writeToken(data['token'] ?? '');
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_tokenKey, data['token'] ?? '');
       await prefs.setString(_userKey, jsonEncode(data['user']));
       _currentUser = User.fromJson(data['user']);
       return data;
@@ -58,8 +64,8 @@ class AuthService {
     );
     final data = _decode(res.body);
     if (res.statusCode >= 200 && res.statusCode < 300) {
+      await _writeToken(data['token'] ?? '');
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_tokenKey, data['token'] ?? '');
       await prefs.setString(_userKey, jsonEncode(data['user']));
       _currentUser = User.fromJson(data['user']);
       return _currentUser!;
@@ -101,14 +107,47 @@ class AuthService {
       }
     }
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_tokenKey);
     await prefs.remove(_userKey);
+    await _deleteToken();
     _currentUser = null;
   }
 
   Future<String?> getToken() async {
+    if (_useSecureStorage) {
+      try {
+        return await _storage.read(key: _tokenKey);
+      } catch (_) {
+        return null; // penyimpanan aman tidak tersedia → perlakukan sebagai belum login
+      }
+    }
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_tokenKey);
+  }
+
+  Future<void> _writeToken(String value) async {
+    if (_useSecureStorage) {
+      try {
+        await _storage.write(key: _tokenKey, value: value);
+      } catch (_) {
+        // abaikan: gagal menyimpan di secure storage bukan blunder fatal
+      }
+      return;
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_tokenKey, value);
+  }
+
+  Future<void> _deleteToken() async {
+    if (_useSecureStorage) {
+      try {
+        await _storage.delete(key: _tokenKey);
+      } catch (_) {
+        // abaikan
+      }
+      return;
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_tokenKey);
   }
 }
 

@@ -1,13 +1,9 @@
-name: Tests
+name: Backend Tests
 
 on:
   push:
-    branches:
-      - master
-      - '*.x'
+    branches: [master, main]
   pull_request:
-  schedule:
-    - cron: '0 0 * * *'
 
 permissions:
   contents: read
@@ -15,6 +11,9 @@ permissions:
 jobs:
   tests:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: eco-rangers-api
 
     strategy:
       fail-fast: true

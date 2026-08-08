@@ -1,6 +1,5 @@
 import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'tokens.dart';
 
@@ -11,22 +10,22 @@ class AppTheme {
 
   static const Color lightBackgroundColor = AppColors.background;
   static const Color lightSurfaceColor = AppColors.surface;
-  static const Color lightSurfaceAltColor = Color(0xFFF0F5F0);
+  static const Color lightSurfaceAltColor = Color(0xFFF2F2F7);
   static const Color lightTextColor = AppColors.text;
   static const Color lightMutedTextColor = AppColors.textMuted;
 
-  static const Color darkBackgroundColor = Color(0xFF0F1512);
-  static const Color darkSurfaceColor = Color(0xFF16201A);
-  static const Color darkSurfaceAltColor = Color(0xFF1E2A22);
-  static const Color darkTextColor = Color(0xFFF2F5F2);
-  static const Color darkMutedTextColor = Color(0xFF9AB09E);
+  static const Color darkBackgroundColor = Color(0xFF000000); // iOS black
+  static const Color darkSurfaceColor = Color(0xFF1C1C1E); // iOS secondary system bg
+  static const Color darkSurfaceAltColor = Color(0xFF2C2C2E);
+  static const Color darkTextColor = Color(0xFFFFFFFF);
+  static const Color darkMutedTextColor = Color(0xFF8E8E93); // iOS secondary label
 
   static TextTheme _getTextTheme(bool isDark) {
     final textColor = isDark ? darkTextColor : lightTextColor;
     final mutedTextColor = isDark ? darkMutedTextColor : lightMutedTextColor;
 
-    return GoogleFonts.interTextTheme(
-      TextTheme(
+    // Font Inter dipakai langsung via asset lokal (tanpa fetch runtime).
+    return TextTheme(
         displayLarge: TextStyle(
           fontWeight: FontWeight.w800,
           color: textColor,
@@ -84,8 +83,7 @@ class AppTheme {
           color: mutedTextColor,
           fontSize: 12,
         ),
-      ),
-    );
+      ).apply(fontFamily: 'Inter');
   }
 
   static ThemeData get lightTheme => _build(Brightness.light);
@@ -98,12 +96,14 @@ class AppTheme {
 
     final colorScheme = isDark
         ? const ColorScheme.dark(
-            primary: AppColors.accent,
-            onPrimary: Color(0xFF123018),
+            primary: Color(0xFF34C759), // iOS system green
+            onPrimary: Color(0xFF00230B),
             secondary: AppColors.secondary,
             tertiary: AppColors.warning,
-            surface: Color(0xFF16201A),
-            onSurface: Color(0xFFF2F5F2),
+            surface: Color(0xFF1C1C1E),
+            surfaceContainerHighest: Color(0xFF2C2C2E),
+            onSurface: Color(0xFFFFFFFF),
+            onSurfaceVariant: Color(0xFF8E8E93),
             error: AppColors.error,
           )
         : const ColorScheme.light(
@@ -113,7 +113,9 @@ class AppTheme {
             onSecondary: AppColors.onPrimary,
             tertiary: AppColors.accent,
             surface: AppColors.surface,
+            surfaceContainerHighest: Color(0xFFE9E9EB),
             onSurface: AppColors.text,
+            onSurfaceVariant: Color(0xFF8E8E93),
             error: AppColors.error,
           );
 
@@ -138,6 +140,7 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
         foregroundColor: isDark ? darkTextColor : lightTextColor,
         elevation: 0,
+        scrolledUnderElevation: 0.5,
         centerTitle: false,
         titleTextStyle: textTheme.titleLarge,
         iconTheme: IconThemeData(color: isDark ? darkTextColor : lightTextColor),
@@ -162,20 +165,24 @@ class AppTheme {
       outlinedButtonTheme: _outlinedButtonTheme(isDark),
       chipTheme: _chipTheme(isDark),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: isDark ? darkSurfaceColor : AppColors.surface,
+        backgroundColor: (isDark ? darkSurfaceColor : AppColors.surface).withValues(alpha: 0.9),
         surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        indicatorColor: AppColors.accent.withValues(alpha: 0.28),
+        elevation: 0.5,
+        height: 74,
+        indicatorColor: (isDark ? AppColors.accent : AppColors.primary).withValues(alpha: 0.18),
+        indicatorShape: const StadiumBorder(),
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
-          return textTheme.labelMedium?.copyWith(
+          return textTheme.labelSmall?.copyWith(
             color: selected ? (isDark ? AppColors.accent : AppColors.primary) : (isDark ? darkMutedTextColor : lightMutedTextColor),
-            fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
           );
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return IconThemeData(
+            size: selected ? 26 : 24,
             color: selected ? (isDark ? AppColors.accent : AppColors.primary) : (isDark ? darkMutedTextColor : lightMutedTextColor),
           );
         }),
@@ -250,7 +257,7 @@ class AppTheme {
         foregroundColor: isDark ? const Color(0xFF123018) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.md, horizontal: AppSpacing.xl),
-        textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15),
+        textStyle: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w700, fontSize: 15, height: 1.0),
         minimumSize: const Size(double.infinity, 52),
         elevation: 0,
       ),
@@ -265,7 +272,7 @@ class AppTheme {
         foregroundColor: isDark ? const Color(0xFF123018) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.md, horizontal: AppSpacing.xl),
-        textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15),
+        textStyle: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w700, fontSize: 15, height: 1.0),
         minimumSize: const Size(double.infinity, 52),
       ),
     );
@@ -278,7 +285,7 @@ class AppTheme {
         side: const BorderSide(color: AppColors.primary),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.md, horizontal: AppSpacing.xl),
-        textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15),
+        textStyle: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w700, fontSize: 15, height: 1.0),
       ),
     );
   }
@@ -287,7 +294,8 @@ class AppTheme {
     return ChipThemeData(
       backgroundColor: isDark ? darkSurfaceAltColor : lightSurfaceAltColor,
       selectedColor: AppColors.accent.withValues(alpha: 0.24),
-      labelStyle: GoogleFonts.inter(
+      labelStyle: TextStyle(
+        fontFamily: 'Inter',
         fontSize: 13,
         fontWeight: FontWeight.w600,
         color: isDark ? darkTextColor : lightTextColor,

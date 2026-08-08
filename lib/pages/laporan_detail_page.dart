@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:eco_rangers/models/report_update.dart';
 import 'package:eco_rangers/pages/photo_viewer_page.dart';
 import 'package:eco_rangers/services/auth_service.dart';
@@ -87,20 +88,18 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
                     tag: _currentLaporan.fotoUrl!,
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(24),
-                      child: Image.network(
-                        _currentLaporan.fotoUrl!,
+                      child: CachedNetworkImage(
+                        imageUrl: _currentLaporan.fotoUrl!,
                         fit: BoxFit.cover,
                         height: 220,
-                        loadingBuilder: (_, child, progress) => progress == null
-                            ? child
-                            : Container(
-                                height: 220,
-                                color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                                child: const Center(
-                                  child: CircularProgressIndicator(strokeWidth: 2.5),
-                                ),
-                              ),
-                        errorBuilder: (_, __, ___) => Container(
+                        placeholder: (_, __) => Container(
+                          height: 220,
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                          child: const Center(
+                            child: CircularProgressIndicator(strokeWidth: 2.5),
+                          ),
+                        ),
+                        errorWidget: (_, __, ___) => Container(
                           height: 220,
                           color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                           child: const Icon(Icons.broken_image_outlined, size: 48, color: AppColors.textMuted),
@@ -298,7 +297,7 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
                           tag: update.fotoDokumentasiUrl!,
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: Image.network(update.fotoDokumentasiUrl!),
+                            child: CachedNetworkImage(imageUrl: update.fotoDokumentasiUrl!),
                           ),
                         ),
                       ),

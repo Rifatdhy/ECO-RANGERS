@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/laporan.dart';
@@ -35,14 +36,13 @@ class ReportCard extends StatelessWidget {
               if (hasPhoto)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(AppRadius.lg),
-                  child: Image.network(
-                    laporan.fotoUrl!,
+                  child: CachedNetworkImage(
+                    imageUrl: laporan.fotoUrl!,
                     width: 72,
                     height: 72,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _cardIcon(context),
-                    loadingBuilder: (_, child, progress) =>
-                        progress == null ? child : const SkeletonBox(width: 72, height: 72, radius: AppRadius.lg),
+                    errorWidget: (_, __, ___) => _cardIcon(context),
+                    placeholder: (_, __) => const SkeletonBox(width: 72, height: 72, radius: AppRadius.lg),
                   ),
                 )
               else

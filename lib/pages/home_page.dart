@@ -18,13 +18,14 @@ class HomePage extends StatefulWidget {
   final VoidCallback? openCreateReport;
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<HomePage> createState() => HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class HomePageState extends State<HomePage> {
   final ApiClient _api = locator<ApiClient>();
   User? _user;
   List<Laporan> _laporanList = [];
+  List<MapEntry<String, int>> _leaderboard = [];
   bool _isLoading = true;
   String? _error;
 
@@ -34,6 +35,8 @@ class _HomePageState extends State<HomePage> {
     _load();
   }
 
+  void refresh() => _load();
+
   Future<void> _load() async {
     setState(() {
       _isLoading = true;
@@ -42,12 +45,25 @@ class _HomePageState extends State<HomePage> {
     try {
       _user = await locator<AuthService>().getMe();
       _laporanList = await _api.fetchReportsAsModel();
+      _leaderboard = _computeLeaderboard();
       if (mounted) setState(() {});
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  List<MapEntry<String, int>> _computeLeaderboard() {
+    final counts = <String, int>{};
+    for (final l in _laporanList) {
+      final name = l.user?.name ?? l.user?.username;
+      if (name == null || name.isEmpty) continue;
+      counts[name] = (counts[name] ?? 0) + 1;
+    }
+    final sorted = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return sorted.take(5).toList();
   }
 
   int get _pending =>
@@ -245,16 +261,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildLeaderboard() {
-    final counts = <String, int>{};
-    for (final l in _laporanList) {
-      final name = l.user?.name ?? l.user?.username;
-      if (name == null || name.isEmpty) continue;
-      counts[name] = (counts[name] ?? 0) + 1;
-    }
-    final sorted = counts.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    final top = sorted.take(5).toList();
-
+    final top = _leaderboard;
     if (top.isEmpty) return const SizedBox.shrink();
 
     return Container(

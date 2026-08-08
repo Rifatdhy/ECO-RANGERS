@@ -6,8 +6,8 @@ return [
 
     'allowed_methods' => ['*'],
 
-    // Untuk development boleh '*' dulu. Nanti di production batasi asal domainnya.
-    'allowed_origins' => ['*'],
+    // '* untuk development. Batasi di production via .env CORS_ALLOWED_ORIGINS (dipisah koma).
+    'allowed_origins' => array_filter(explode(',', env('CORS_ALLOWED_ORIGINS', '*'))),
 
     'allowed_origins_patterns' => [],
 

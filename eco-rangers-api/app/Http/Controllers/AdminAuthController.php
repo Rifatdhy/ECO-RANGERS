@@ -29,7 +29,7 @@ class AdminAuthController extends Controller
             }
         }
 
-        // Jika login gagal atau user bukan admin
-        return response()->json(['message' => 'Email, password salah, atau Anda bukan admin'], 401);
+        // Pesan seragam untuk mencegah enumerasi akun admin
+        return response()->json(['message' => 'Email atau password salah'], 401);
     }
 }

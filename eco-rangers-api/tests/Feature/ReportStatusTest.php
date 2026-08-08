@@ -25,9 +25,9 @@ class ReportStatusTest extends TestCase
             'status' => 'selesai',
         ]);
 
-        // THEN server merespons 200 dan status berubah
+        // THEN server merespons 200 dan status berubah (lowercase, sesuai normalisasi)
         $response->assertStatus(200)
-                 ->assertJsonPath('report.status', 'Selesai');
+                 ->assertJsonPath('report.status', 'selesai');
     }
 
     /** @test */

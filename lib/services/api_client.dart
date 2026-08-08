@@ -1,13 +1,21 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import '../config.dart';
 import '../models/laporan.dart';
+import '../session.dart';
+import '../utils/image_utils.dart';
 import 'auth_service.dart';
 
 class ApiClient {
   static const _timeout = Duration(seconds: 15);
+
+  /// Jika token tak valid/expired, bersihkan sesi & arahkan ke halaman login.
+  void _checkAuth(http.Response res) {
+    if (res.statusCode == 401) {
+      handleSessionExpired();
+    }
+  }
 
   static Future<T> _guard<T>(Future<T> future, String op) {
     return future.timeout(_timeout, onTimeout: () {
@@ -15,15 +23,16 @@ class ApiClient {
     });
   }
 
-  Future<List<dynamic>> getReports({String? status}) async {
+  Future<List<dynamic>> getReports({String? status, int? limit, int? offset}) async {
     final t = await AuthService.instance.getToken();
 
-    var path = '/api/reports';
-    // Cek jika status tidak null, tidak kosong, dan bukan 'semua'
-    if (status != null && status.isNotEmpty && status.toLowerCase() != 'semua') {
-      // Pastikan status dikirim dalam huruf kecil (lowercase)
-      path += '?status=${status.toLowerCase()}';
-    }
+    final query = <String, String>{
+      if (status != null && status.isNotEmpty && status.toLowerCase() != 'semua')
+        'status': status.toLowerCase(),
+      if (limit != null) 'limit': '$limit',
+      if (offset != null) 'offset': '$offset',
+    };
+    final path = query.isEmpty ? '/api/reports' : '/api/reports?${Uri(queryParameters: query).query}';
 
     final res = await _guard(
       http.get(
@@ -36,6 +45,7 @@ class ApiClient {
       'GET /api/reports',
     );
     if (res.statusCode != 200) {
+      _checkAuth(res);
       throw Exception('GET /api/reports gagal: ${res.statusCode} ${res.body}');
     }
     return jsonDecode(res.body) as List;
@@ -62,25 +72,23 @@ class ApiClient {
       });
 
     if (imageFile != null) {
-      if (kIsWeb) {
-        final bytes = await imageFile.readAsBytes();
-        req.files.add(http.MultipartFile.fromBytes('foto', bytes, filename: imageFile.name));
-      } else {
-        req.files.add(await http.MultipartFile.fromPath('foto', imageFile.path));
-      }
+      final bytes = await imageFile.readAsBytes();
+      final resized = resizeImageBytes(bytes) ?? bytes;
+      req.files.add(http.MultipartFile.fromBytes('foto', resized, filename: imageFile.name));
     }
 
     final sent = await _guard(req.send(), 'POST /api/reports');
     final res = await http.Response.fromStream(sent);
 
     if (res.statusCode != 201 && res.statusCode != 200) {
+      _checkAuth(res);
       throw Exception('POST /api/reports gagal: ${res.statusCode} ${res.body}');
     }
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
-  Future<List<Laporan>> fetchReportsAsModel({String? status}) async {
-    final list = await getReports(status: status);
+  Future<List<Laporan>> fetchReportsAsModel({String? status, int? limit, int? offset}) async {
+    final list = await getReports(status: status, limit: limit, offset: offset);
     return list.map<Laporan>((e) => Laporan.fromJson(e as Map<String, dynamic>)).toList();
   }
 
@@ -105,18 +113,16 @@ class ApiClient {
     }
     
     if (documentationImage != null) {
-      if (kIsWeb) {
-        final bytes = await documentationImage.readAsBytes();
-        req.files.add(http.MultipartFile.fromBytes('foto_dokumentasi', bytes, filename: documentationImage.name));
-      } else {
-        req.files.add(await http.MultipartFile.fromPath('foto_dokumentasi', documentationImage.path));
-      }
+      final bytes = await documentationImage.readAsBytes();
+      final resized = resizeImageBytes(bytes) ?? bytes;
+      req.files.add(http.MultipartFile.fromBytes('foto_dokumentasi', resized, filename: documentationImage.name));
     }
 
     final sent = await _guard(req.send(), 'POST update status');
     final res = await http.Response.fromStream(sent);
 
     if (res.statusCode != 200) {
+      _checkAuth(res);
       throw Exception('POST update status gagal: ${res.statusCode} ${res.body}');
     }
     return jsonDecode(res.body) as Map<String, dynamic>;
@@ -135,6 +141,7 @@ class ApiClient {
       'DELETE /api/reports/$id',
     );
     if (res.statusCode != 200) {
+      _checkAuth(res);
       throw Exception('DELETE gagal: ${res.statusCode} ${res.body}');
     }
   }
@@ -153,6 +160,7 @@ class ApiClient {
     );
 
     if (res.statusCode != 200) {
+      _checkAuth(res);
       throw Exception('Gagal membersihkan laporan: ${res.statusCode} ${res.body}');
     }
 

@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:eco_rangers/models/user.dart';
 import 'package:eco_rangers/ui/app_theme.dart';
 import 'package:flutter/material.dart';
 
@@ -75,15 +76,12 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
     setState(() => _isLoading = true);
 
     try {
-      await locator<AuthService>().register(
+      final data = await locator<AuthService>().register(
         username: _registerNameController.text.trim(),
         email: _registerEmailController.text.trim(),
         password: _registerPasswordController.text,
       );
-      final user = await locator<AuthService>().login(
-        email: _registerEmailController.text.trim(),
-        password: _registerPasswordController.text,
-      );
+      final user = User.fromJson(data['user']);
       _handleLoginSuccess(user.isAdmin);
     } catch (e) {
       _showError(e);

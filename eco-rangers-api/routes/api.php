@@ -7,9 +7,9 @@ use App\Http\Controllers\AdminAuthController;
 
 // Endpoint publik
 Route::get('/ping', fn () => response()->json(['ok' => true]));
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/admin/login', [AdminAuthController::class, 'login']);
+Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:' . env('THROTTLE_LOGIN', '10') . ',1');
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:' . env('THROTTLE_LOGIN', '10') . ',1');
+Route::post('/admin/login', [AdminAuthController::class, 'login'])->middleware('throttle:' . env('THROTTLE_LOGIN', '10') . ',1');
 
 // Rute testing (hanya aktif di environment local/testing) untuk membantu
 // pembuatan data yang diperlukan selama pengujian acceptance.
@@ -20,12 +20,16 @@ if (app()->environment(['local', 'testing'])) {
         $username = 'admin';
         $password = env('ADMIN_PASSWORD', '12345678');
 
+        if ($password === null || $password === '') {
+            return response()->json(['created' => false, 'message' => 'ADMIN_PASSWORD tidak diset'], 500);
+        }
+
         $user = \App\Models\User::updateOrCreate(
             ['email' => $email],
             [
                 'username' => $username,
                 'name' => 'Admin User',
-                'password' => Illuminate\Support\Facades\Hash::make($password),
+                'password' => $password, // otomatis di-hash oleh cast 'hashed'
                 'is_admin' => true,
             ]
         );

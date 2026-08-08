@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.eco_rangers">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- Network & HTTP (wajib untuk hit API lokal) -->
     <uses-permission android:name="android.permission.INTERNET"/>
@@ -21,10 +20,9 @@
 
     <application
         android:name="${applicationName}"
-        android:label="eco_rangers"
+        android:label="Eco Rangers"
         android:icon="@mipmap/ic_launcher"
         android:requestLegacyExternalStorage="true"
-        android:usesCleartextTraffic="true"
         android:enableOnBackInvokedCallback="true">
 
         <activity

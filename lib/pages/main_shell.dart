@@ -15,13 +15,17 @@ class MainShell extends StatefulWidget {
 }
 
 class _MainShellState extends State<MainShell> {
+  final _homeKey = GlobalKey<HomePageState>();
   int _index = 0;
 
   void _openCreateReport() {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const BuatLaporanPage()),
-    ).then((_) => setState(() {}));
+    ).then((_) {
+      if (mounted) setState(() {});
+      _homeKey.currentState?.refresh();
+    });
   }
 
   @override
@@ -30,8 +34,9 @@ class _MainShellState extends State<MainShell> {
       body: IndexedStack(
         index: _index,
         children: [
-          HomePage(openCreateReport: _openCreateReport),
+          HomePage(key: _homeKey, openCreateReport: _openCreateReport),
           const MapPage(),
+          const SizedBox.shrink(), // slot FAB tengah (tidak ada halaman)
           const ActivityPage(),
           const ProfilePage(),
         ],

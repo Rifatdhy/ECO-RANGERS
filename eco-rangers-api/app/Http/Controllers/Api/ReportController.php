@@ -35,14 +35,20 @@ class ReportController extends Controller
             return response()->json([]);
         }
 
-        $reports = $query->get();
+        $reports = $query
+            ->offset($request->integer('offset', 0))
+            ->limit(min(max($request->integer('limit', 200), 1), 500))
+            ->get();
 
-        $reports->each(function ($report) {
+        // Normalisasi status ke lowercase + tambah foto_url untuk konsistensi lintas skenario
+        $reports->transform(function ($report) {
+            $report->status = strtolower($report->status);
             $report->foto_url = $report->foto_path ? asset('storage/' . $report->foto_path) : null;
             $report->updates->each(function ($update) {
                 $update->foto_dokumentasi_url = $update->foto_dokumentasi ? asset('storage/' . $update->foto_dokumentasi) : null;
+                $update->status = strtolower($update->status);
             });
-            $report->status = ucfirst($report->status);
+            return $report;
         });
 
         // Tambahkan header untuk menonaktifkan caching
@@ -58,7 +64,7 @@ class ReportController extends Controller
         }
 
         $report->load(['user', 'updates']);
-        $report->status = ucfirst($report->status);
+        $report->status = strtolower($report->status);
         return response()->json($report);
     }
 
@@ -87,7 +93,8 @@ class ReportController extends Controller
         ]);
 
         $report->load('user');
-        $report->status = ucfirst($report->status);
+        $report->status = strtolower($report->status);
+        $report->foto_url = $report->foto_path ? asset('storage/' . $report->foto_path) : null;
 
         return response()->json(['report' => $report], 201);
     }
@@ -123,7 +130,10 @@ class ReportController extends Controller
         });
 
         $report->load(['user', 'updates']);
-        $report->status = ucfirst($report->status);
+        $report->status = strtolower($report->status);
+        $report->updates->each(function ($update) {
+            $update->status = strtolower($update->status);
+        });
 
         return response()->json([
             'message' => 'Status laporan berhasil diubah',
@@ -133,26 +143,26 @@ class ReportController extends Controller
 
     public function destroy(Report $report)
     {
-        if ($report->foto_path) {
-            Storage::disk('public')->delete($report->foto_path);
-        }
+        $report->load('updates');
 
-        foreach ($report->updates as $update) {
-            if ($update->foto_dokumentasi) {
-                Storage::disk('public')->delete($update->foto_dokumentasi);
+        DB::transaction(function () use ($report) {
+            foreach ($report->updates as $update) {
+                if ($update->foto_dokumentasi) {
+                    Storage::disk('public')->delete($update->foto_dokumentasi);
+                }
             }
-        }
+            if ($report->foto_path) {
+                Storage::disk('public')->delete($report->foto_path);
+            }
 
-        $report->delete();
+            $report->delete();
+        });
+
         return response()->json(['message' => 'Laporan berhasil dihapus', 'deleted' => true]);
     }
 
     public function clearAll(Request $request)
     {
-        if (!$request->user() || !$request->user()->tokenCan('role:admin')) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
         DB::transaction(function () {
             // 1. Hapus semua file dari storage
             $reportFiles = Storage::disk('public')->files('reports');
