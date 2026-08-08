@@ -1,6 +1,6 @@
 # 🌱 Eco Rangers
 
-**Eco Rangers** adalah aplikasi pelaporan masalah lingkungan berbasis mobile yang memungkinkan pengguna untuk melaporkan, memantau, dan menindaklanjuti isu-isu lingkungan secara real-time. Proyek ini terdiri dari aplikasi mobile (Flutter) dan backend API (Laravel).
+**Eco Rangers** adalah aplikasi pelaporan masalah lingkungan yang memungkinkan pengguna untuk melaporkan, memantau, dan menindaklanjuti isu-isu lingkungan secara real-time. Terdiri dari aplikasi **Flutter** (Android / iOS / Web) dan backend **Laravel** (REST API).
 
 ---
 
@@ -8,29 +8,33 @@
 
 | Fitur | Deskripsi |
 |-------|-----------|
-| 📸 **Laporan + Foto** | Laporkan masalah lingkungan lengkap dengan foto dan lokasi |
-| 🔍 **Pencarian & Filter** | Cari laporan berdasarkan judul/deskripsi, filter berdasarkan status |
+| 📸 **Laporan + Foto** | Laporkan masalah lingkungan lengkap dengan foto (auto-resize) dan lokasi GPS |
+| 📍 **Peta Laporan** | Lihat koordinat laporan & buka Google Maps |
 | 📊 **Status Real-time** | Pantau status laporan: Pending, Diproses, Selesai, Ditolak |
-| 👤 **Autentikasi** | Login/Register untuk pengguna, role khusus untuk admin |
-| 🛡️ **Dashboard Admin** | Kelola semua laporan, ubah status, dan kelola pengguna |
-| 📱 **Responsif** | Tampilan optimal di berbagai ukuran layar mobile |
+| 👤 **Autentikasi** | Register/Login (token aman via Sanctum), role khusus admin |
+| 🛡️ **Dashboard Admin** | Kelola semua laporan, ubah status + foto dokumentasi, filter & cari |
+| 📱 **Desain iOS** | Tema ala iOS: palet sistem, frosted glass, dark mode otomatis |
+| 🌗 **Dark Mode** | Ikut mode gelap/terang perangkat (`ThemeMode.system`) |
 
 ---
 
 ## 🧱 Teknologi
 
-### Frontend (Mobile)
-- **Flutter** — Framework UI cross-platform
-- **Dart** — Bahasa pemrograman
-- **Provider / GetIt** — Manajemen state & dependency injection
-- **SharedPreferences** — Penyimpanan lokal token & sesi
+### Frontend (Flutter)
+- **Flutter** — Cross-platform (Android, iOS, Web)
+- **GetIt** — Dependency injection
+- **flutter_secure_storage** — Token & sesi tersimpan aman (native keystore); di web memakai SharedPreferences
+- **http + Multipart** — REST API & upload
+- **cached_network_image** — Cache gambar laporan
 - **DevicePreview** — Preview responsif saat debugging
+- **Inter (font lokal)** — Font variable di-bundle (tanpa fetch runtime, gaya mirip SF Pro)
 
-### Backend (API)
+### Backend (Laravel API)
 - **Laravel 12** — Framework PHP
-- **SQLite / MySQL** — Database
-- **Sanctum** — Autentikasi API token
-- **Laravel Dusk** — Browser testing
+- **Sanctum** — Personal access token dengan abilities (`role:user` / `role:admin`)
+- **SQLite** (dev) / **MySQL** (produksi)
+- **Sentry** — Error tracking (opsional, via env)
+- **Rate limiting & token expiry** bawaan (7 hari default)
 
 ---
 
@@ -39,35 +43,33 @@
 ```
 ECO-RANGERS/
 ├── lib/                          # Aplikasi Flutter
-│   ├── main.dart                 # Entry point aplikasi
+│   ├── main.dart                 # Entry point + navigator key global
 │   ├── config.dart               # Konfigurasi API URL
+│   ├── session.dart              # Penanganan sesi expired (auto re-auth)
 │   ├── locator.dart              # Dependency injection (GetIt)
-│   ├── models/                   # Model data (User, Laporan)
-│   ├── pages/                    # Halaman aplikasi
-│   │   ├── auth_page.dart        # Halaman login/register
-│   │   ├── dashboard_user_page.dart  # Dashboard user
-│   │   ├── buat_laporan_page.dart    # Form laporan baru
-│   │   └── laporan_detail_page.dart  # Detail laporan
-│   ├── services/                 # Service layer
-│   │   ├── api_client.dart       # HTTP client utama
-│   │   ├── auth_service.dart     # Autentikasi
-│   │   └── report_api.dart       # API laporan
-│   └── ui/                       # Tema & komponen UI
-│       └── app_theme.dart        # Tema kustom
+│   ├── models/                   # User, Laporan, ReportUpdate
+│   ├── pages/                    # Splash, Auth, Home, Map, BuatLaporan,
+│   │                             #   Activity, Profile, DashboardAdmin,
+│   │                             #   LaporanDetail, UpdateStatus, PhotoViewer
+│   ├── services/                 # api_client.dart, auth_service.dart
+│   ├── ui/                       # app_theme.dart (tema iOS), tokens,
+│   │   └── widgets/              #   status_badge, report_card, state_views, ...
+│   └── utils/                    # image_utils.dart (resize sebelum upload)
 ├── eco-rangers-api/              # Backend Laravel
-│   ├── app/Http/Controllers/     # Controller API
-│   ├── app/Models/               # Model Eloquent
-│   ├── database/migrations/      # Migrasi database
-│   ├── database/seeders/         # Seeder data awal
-│   └── routes/api.php            # Rute API
-├── test/                         # Unit test Flutter
+│   ├── app/Http/Controllers/     # Auth, AdminAuth, Api/Report
+│   ├── app/Models/               # User, Report, ReportUpdate
+│   ├── database/migrations/      # Migrasi (order sudah dinormalisasi)
+│   ├── database/seeders/         # AdminUserSeeder + factory users
+│   ├── routes/api.php            # Semua endpoint API
+│   └── config/                   # CORS, Sanctum, dll
+├── test/                         # Unit/widget test Flutter
 ├── integration_test/             # Integration test Flutter
-└── features/                     # BDD feature files
+└── .github/workflows/            # CI: flutter.yml + backend.yml
 ```
 
 ---
 
-## 🚀 Panduan Instalasi
+## 🚀 Instalasi Lokal
 
 ### Prasyarat
 
@@ -75,141 +77,139 @@ ECO-RANGERS/
 |-------|---------------|
 | PHP | >= 8.2 |
 | Composer | latest |
-| Flutter SDK | 3.x |
-| Database | SQLite / MySQL |
-
----
+| Flutter SDK | 3.x (Dart 3.9+) |
+| Database | SQLite (default) / MySQL |
 
 ### 1. Setup Backend (Laravel API)
 
 ```bash
-# Masuk ke folder API
 cd eco-rangers-api
 
-# Install dependencies PHP
 composer install
-
-# Konfigurasi environment
 cp .env.example .env
-# Edit file .env sesuai database Anda
 
-# Generate application key
+# Sesuaikan .env bila perlu (default: SQLite)
 php artisan key:generate
 
-# Migrasi database (dengan seeder untuk akun default)
+# Migrasi + seeder (membuat admin & 10 user testing)
 php artisan migrate --seed
 
-# Buat symbolic link untuk penyimpanan file
+# Link penyimpanan publik untuk foto laporan
 php artisan storage:link
 
-# Jalankan server
-php artisan serve --host=0.0.0.0 --port=8000
+php artisan serve --port=8000
 ```
 
-> **Catatan:** Gunakan `--host=0.0.0.0` agar API bisa diakses dari emulator atau HP fisik dalam jaringan yang sama.
-
----
+> Gunakan `--host=0.0.0.0` bila ingin diakses emulator/HP lain dalam jaringan.
+> Kredensial admin default ada di section [Akun Default](#-akun-default-testing).
 
 ### 2. Setup Frontend (Flutter)
 
 ```bash
-# Kembali ke root folder
 cd ..
-
-# Install dependencies Flutter
 flutter pub get
 
-# Konfigurasi koneksi API
-# Buat file .env di root folder (sejajar dengan pubspec.yaml)
+# Buat file .env di root (sejajar pubspec.yaml)
 ```
 
-**Isi file `.env`:**
+**Isi `.env`:**
 
 ```env
-# Untuk Android Emulator
-API_BASE_URL=http://10.0.2.2:8000
-
-# Untuk HP Fisik (gunakan IP laptop Anda)
-API_BASE_URL=http://192.168.1.X:8000
+API_BASE_URL=http://127.0.0.1:8000        # Desktop / emulator AVD (host)
+# API_BASE_URL=http://10.0.2.2:8000       # Android Emulator
+# API_BASE_URL=http://192.168.1.X:8000    # HP Fisik (IP laptop)
+# API_BASE_URL=https://api.ecorangers.com # Produksi (HTTPS wajib)
 ```
 
 ```bash
-# Jalankan aplikasi
-flutter run
+flutter run                    # pilih device
+flutter run -d chrome          # jalankan di browser
 ```
+
+> Token berumur 7 hari (default). Saat expired semua permintaan 401 akan
+> otomatis menghapus sesi dan membawa user ke halaman login.
 
 ---
 
 ## 🔑 Akun Default (Testing)
 
-Setelah menjalankan `php artisan migrate --seed`, akun berikut tersedia:
+Untuk KINERJA `php artisan migrate --seed`:
 
 | Role | Email | Password |
 |------|-------|----------|
 | **Admin** | `admin@gmail.com` | `12345678` |
 
-> Kredensial admin bisa diubah via `ADMIN_EMAIL` dan `ADMIN_PASSWORD` di `eco-rangers-api/.env`.
+Admin dibuat dengan `is_admin = true`. Ganti via env:
+
+```env
+ADMIN_EMAIL=admin@domain.com
+ADMIN_PASSWORD=password-kuat-anda
+```
+
+> **Keamanan:** di environment **produksi**, seeder akan menolak password default. Atur `ADMIN_PASSWORD` dengan string acak kuat di `.env.production.example` (disalin ke `.env` di server).
 
 ---
 
 ## 🧪 Testing
 
-### Backend (Laravel)
+### Backend
 
 ```bash
 cd eco-rangers-api
 php artisan test
 ```
 
-### Frontend (Flutter)
+### Flutter
 
 ```bash
-# Unit test
-flutter test
-
-# Integration test
-flutter test integration_test/
+flutter test                # unit & widget
+flutter test integration_test/   # integration (butuh device)
 ```
+
+### CI
+`push` / `pull_request` ke `main`/`master` menjalankan:
+- `.github/workflows/backend.yml` — PHP 8.2–8.4, lint + test
+- `.github/workflows/flutter.yml` — analyze + test + build web
 
 ---
 
-## 📝 Catatan Penting
+## 🔑 Endpoint API Utama
 
-### Gambar & File
-Aplikasi menggunakan sistem proxy (`/api/files/{path}`) untuk memuat gambar. Pastikan folder storage telah di-link:
+| Method | Path | Keterangan |
+|--------|------|-----------|
+| POST | `/api/register` | Daftar pengguna baru |
+| POST | `/api/login` | Login (token sesuai role) |
+| POST | `/api/admin/login` | Login admin khusus (opsional) |
+| GET/POST | `/api/me`, `/api/logout` | Profil & keluar |
+| GET | `/api/reports?status=&limit=&offset=` | List laporan (admin semua, user miliknya) |
+| POST | `/api/reports` | Buat laporan (multipart: judul, deskripsi, lokasi, foto) |
+| PATCH/POST | `/api/reports/{id}/status` | Ubah status + update progres (admin) |
+| DELETE | `/api/reports/{id}` | Hapus laporan (admin) |
+| GET | `/api/files/{path}` | Proxy akses file foto |
 
-```bash
-cd eco-rangers-api
-php artisan storage:link
-```
+---
 
-### Izin Aplikasi
-Pada Android, pastikan izin berikut diberikan saat diminta:
-- 📍 **Lokasi** — Untuk mengambil lokasi laporan
-- 📷 **Kamera/Galeri** — Untuk mengunggah foto
+## ⚙️ Konfigurasi Produksi
 
-### Koneksi API
-Jika aplikasi tidak dapat terhubung ke API:
-1. Pastikan server Laravel berjalan
-2. Periksa alamat IP pada file `.env`
-3. Pastikan perangkat dan server berada dalam jaringan yang sama
-4. Nonaktifkan firewall jika perlu
+- **HTTPS wajib** — release build tidak memperbolehkan cleartext traffic (debug hanya untuk local).
+- Siapkan `.env.production.example` → `.env` di server (MySQL, `APP_DEBUG=false`, CORS terbatas via `CORS_ALLOWED_ORIGINS`, admin password kuat, DSN Sentry).
+- Pakai pekerja queue & cache aktiv: `QUEUE_CONNECTION=database` dan aktifkan `queue:work`.
 
 ---
 
 ## 🤝 Kontribusi
 
-1. Fork repositori ini
-2. Buat branch fitur baru: `git checkout -b fitur-keren`
-3. Commit perubahan: `git commit -m 'Menambahkan fitur keren'`
-4. Push ke branch: `git push origin fitur-keren`
+1. Fork repositori
+2. Branch fitur: `git checkout -b fitur-keren`
+3. Commit: `git commit -m 'Menambahkan fitur keren'`
+4. Push: `git push origin fitur-keren`
 5. Buat Pull Request
 
 ---
 
 ## 📄 Lisensi
 
-Hak cipta © 2024 Eco Rangers. Didistribusikan di bawah lisensi MIT.
+Hak cipta © 2026 Eco Rangers. Didistribusikan di bawah lisensi MIT.
 
 ---
 

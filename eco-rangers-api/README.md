@@ -1,61 +1,109 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🌱 Eco Rangers API
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Backend REST API untuk aplikasi **Eco Rangers** (pelaporan masalah lingkungan), dibangun dengan **Laravel 12** + **Sanctum**.
 
-## About Laravel
+Klien utama: aplikasi Flutter di root repo `../`.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## ✨ Fitur
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- **Autentikasi** — Register / Login / Logout via Sanctum personal access token
+- **Role & Izin** — Kemampuan token `role:user` dan `role:admin` (dicek middleware `ability`)
+- **Manajemen Laporan** — Buat, lihat (dengan filter status), ubah status + progres/dokumentasi, hapus
+- **Upload Foto** — Foto laporan & foto dokumentasi petugas, disimpan di disk publik
+- **Proxy File** — `/api/files/{path}` untuk akses foto dengan proteksi path traversal
+- **Keamanan** — Rate limiting login (`THROTTLE_LOGIN`), token expiry 7 hari, CORS via env, guard password default di produksi
+- **Error Tracking** — Sentry (opsional, via `SENTRY_LARAVEL_DSN`)
+- **Berjalan di** — SQLite (dev) & MySQL (prod), siap CI (PHP 8.2–8.4)
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## 📦 Kebutuhan
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+- PHP >= 8.2
+- Composer
+- SQLite (dev) atau MySQL (prod)
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+---
 
-## Laravel Sponsors
+## 🚀 Setup
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+```bash
+composer install
+cp .env.example .env
 
-### Premium Partners
+# Konfigurasi database & env sesuai kebutuhan
+php artisan key:generate
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+# Migrasi + seeder (membuat admin & 10 user)
+php artisan migrate --seed
 
-## Contributing
+# Link disk publik agar foto bisa diakses
+php artisan storage:link
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+php artisan serve --port=8000
+```
 
-## Code of Conduct
+### Akun default
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | `admin@gmail.com` | `12345678` |
 
-## Security Vulnerabilities
+Ganti via `ADMIN_EMAIL` / `ADMIN_PASSWORD` di `.env`. **Jangan** pakai password default di production — seeder akan menolak jika `APP_ENV` bukan `local`/`testing`.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+---
 
-## License
+## 🔗 Endpoint
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+| Method | Path | Middleware | Keterangan |
+|--------|------|------------|------------|
+| GET | `/api/ping` | — | Health check |
+| POST | `/api/register` | `throttle` | Daftar user |
+| POST | `/api/login` | `throttle` | Login (token: ability sesuai role) |
+| POST | `/api/admin/login` | `throttle` | Login admin |
+| GET | `/api/me` | `auth:sanctum` | Profil user |
+| POST | `/api/logout` | `auth:sanctum` | Logout (revoke token) |
+| GET | `/api/reports` | `auth:sanctum` | List laporan; `status`, `limit`, `offset`; user biasa hanya melihat miliknya |
+| GET | `/api/reports/{id}` | `auth:sanctum` | Detail 1 laporan (+user, updates) |
+| POST | `/api/reports` | `auth:sanctum` | Buat laporan (multipart: foto di `foto`) |
+| PATCH/POST | `/api/reports/{id}/status` | admin | Ubah status & tambah update (foto di `foto_dokumentasi`) |
+| DELETE | `/api/reports/{id}` | admin | Hapus laporan + file |
+| POST | `/api/admin/clear-all-reports` | admin | Bersihkan semua laporan + file |
+| GET | `/api/files/{path}` | — | Proxy akses file (anti `..`) |
+
+Route `/api/testing/*` aktif hanya saat `APP_ENV=local|testing`.
+
+---
+
+## ⚙️ Konfigurasi Penting (`.env`)
+
+| Kunci | Default | Keterangan |
+|-------|---------|------------|
+| `APP_ENV` | `local` | Ubah ke `production` |
+| `APP_DEBUG` | `true` | Set `false` di prod |
+| `CORS_ALLOWED_ORIGINS` | `*` | Dipisah koma; ketatkan di prod |
+| `SANCTUM_TOKEN_EXPIRATION` | `10080` | Menit (7 hari) |
+| `THROTTLE_LOGIN` | `10` | Percobaan login per menit |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | — | Akun admin seeder |
+| `SENTRY_LARAVEL_DSN` | kosong | Aktifkan error tracking |
+| `DB_CONNECTION` | `sqlite` | `mysql` di produksi |
+
+Lihat `.env.production.example` untuk template produksi.
+
+---
+
+## 🧪 Testing
+
+```bash
+php artisan test
+```
+
+Test mencakup auth, register/login, laporan CRUD, otorisasi admin, dan normalisasi status.
+
+---
+
+## 📄 Lisensi
+
+MIT.
