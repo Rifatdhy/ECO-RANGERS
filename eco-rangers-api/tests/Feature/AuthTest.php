@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use App\Models\User;
 
@@ -10,7 +11,7 @@ class AuthTest extends TestCase
 {
     use RefreshDatabase; // <— ini penting!
 
-    /** @test */
+    #[Test]
     public function user_can_login_with_valid_credentials()
     {
         // GIVEN user dengan akun valid ada di database

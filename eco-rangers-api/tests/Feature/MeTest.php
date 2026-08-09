@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use App\Models\User;
 
@@ -11,7 +12,7 @@ class MeTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function authenticated_user_can_get_own_profile()
     {
         // GIVEN user sudah login

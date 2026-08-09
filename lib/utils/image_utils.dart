@@ -15,9 +15,7 @@ Uint8List? resizeImageBytes(Uint8List bytes, {int maxDimension = 1600, int quali
     final width = decoded.width;
     final height = decoded.height;
     final longest = width > height ? width : height;
-    if (longest <= maxDimension) {
-      return img.encodeJpg(decoded, quality: quality);
-    }
+    if (longest <= maxDimension) return bytes;
 
     final scale = maxDimension / longest;
     final resized = img.copyResize(

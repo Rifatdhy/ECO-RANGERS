@@ -43,12 +43,17 @@ class ReportController extends Controller
 
         // Pencarian server-side: judul / deskripsi / lokasi (LIKE, case-insensitive).
         if ($request->filled('q')) {
-            $q = trim($request->input('q'));
-            $query->where(function ($sub) use ($q) {
-                $sub->where('judul', 'like', "%{$q}%")
-                    ->orWhere('deskripsi', 'like', "%{$q}%")
-                    ->orWhere('lokasi_text', 'like', "%{$q}%");
-            });
+            $q = $this->sanitizeSearch($request->input('q'));
+            if ($q === null) {
+                // ponytail: tolak query <3 karakter agar tidak memicu full scan LIKE.
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->where(function ($sub) use ($q) {
+                    $sub->where('judul', 'like', "%{$q}%")
+                        ->orWhere('deskripsi', 'like', "%{$q}%")
+                        ->orWhere('lokasi_text', 'like', "%{$q}%");
+                });
+            }
         }
 
         // Admin dapat melihat semua laporan; pengguna biasa hanya miliknya.
@@ -57,7 +62,7 @@ class ReportController extends Controller
         }
 
         $reports = $query
-            ->offset($request->integer('offset', 0))
+            ->offset(min(max($request->integer('offset', 0), 0), 100000))
             ->limit(min(max($request->integer('limit', 200), 1), 500))
             ->get();
 
@@ -143,21 +148,12 @@ class ReportController extends Controller
         }
 
         // Rata-rata waktu tanggap (jam): selisih created_at → update pertama.
-        $avgHours = Report::query()
+        // ponytail: varian SQLite (julianday); untuk MySQL pakai TIMESTAMPDIFF(HOUR, ...)
+        // dan pertimbangkan agregasi engine bila sudah 100k+ baris.
+        $avgHours = (clone $query)
             ->whereHas('updates')
-            ->with(['updates' => fn ($u) => $u->orderBy('created_at')->limit(1)])
-            ->get()
-            ->map(function ($r) {
-                $first = $r->updates->first();
-                $base = $r->created_at;
-                if (! $first || ! $first->created_at || ! $base) {
-                    return null;
-                }
-                $diffMin = abs($first->created_at->getTimestamp() - $base->getTimestamp()) / 60;
-                return $diffMin / 60.0;
-            })
-            ->filter()
-            ->avg();
+            ->selectRaw('AVG(julianday((SELECT MIN(created_at) FROM report_updates u WHERE u.report_id = reports.id)) - julianday(reports.created_at)) * 24 as avg_h')
+            ->first()?->avg_h;
 
         return response()->json([
             'total' => (clone $query)->count(),
@@ -188,6 +184,11 @@ class ReportController extends Controller
             abort(403, 'Hanya pelapor yang dapat mengonfirmasi');
         }
 
+        // Konfirmasi hanya valid bila laporan sudah berstatus selesai.
+        if ($report->status !== 'selesai') {
+            abort(422, 'Laporan belum selesai');
+        }
+
         $validated = $request->validate([
             'konfirmasi' => ['required', 'in:sesuai,tidak_tuntas'],
         ]);
@@ -205,29 +206,38 @@ class ReportController extends Controller
     {
         $user = $request->user();
 
-        // Hanya user biasa yang men-tavigate; admin boleh juga (opsional).
-        $existing = Vote::where('user_id', $user->id)->where('report_id', $report->id)->first();
+        // Cegah IDOR: non-admin hanya boleh vote laporan miliknya sendiri.
+        if (! $user->tokenCan('role:admin') && $report->user_id !== $user->id) {
+            abort(403, 'Tidak dapat memberikan vote');
+        }
 
-        if ($existing) {
-            $existing->delete();
-            $voted = false;
+        // Toggle atomik (exists -> delete/create) tanpa find-then-create.
+        $exists = Vote::where('user_id', $user->id)->where('report_id', $report->id)->exists();
+        if ($exists) {
+            Vote::where('user_id', $user->id)->where('report_id', $report->id)->delete();
         } else {
             Vote::create(['user_id' => $user->id, 'report_id' => $report->id]);
-            $voted = true;
         }
 
         return response()->json([
-            'voted' => $voted,
+            'voted' => ! $exists,
             'votes' => $report->votes()->count(),
         ])->header('Cache-Control', 'no-store');
     }
 
     public function exportCsv(Request $request)
     {
-        // Route sudah dijamin admin via middleware; dan izinkan token via
-        // query (?token=) agar bisa dibuka dari url_launcher (unduhan browser).
+        // Route TANPA middleware auth: izinkan token via query (?token=) agar bisa
+        // dibuka dari url_launcher (unduhan browser), ATAU via Authorization: Bearer.
+        // JANGAN tiru pola token-di-URL pada endpoint lain.
         $user = $request->user();
         $isAdmin = $user && $user->tokenCan('role:admin');
+        if (! $isAdmin && $request->bearerToken()) {
+            $bearerTok = \Laravel\Sanctum\PersonalAccessToken::findToken($request->bearerToken());
+            $isAdmin = $bearerTok
+                && $bearerTok->tokenable
+                && collect($bearerTok->abilities ?? [])->contains('role:admin');
+        }
         if (! $isAdmin && $request->filled('token')) {
             // Menerima plainTextToken penuh ("id|hash") atau hash saja.
             $tok = \Laravel\Sanctum\PersonalAccessToken::findToken($request->input('token'))
@@ -250,11 +260,15 @@ class ReportController extends Controller
             $query->where('kategori', strtolower($request->input('kategori')));
         }
         if ($request->filled('q')) {
-            $q = trim($request->input('q'));
-            $query->where(fn ($sub) => $sub
-                ->where('judul', 'like', "%{$q}%")
-                ->orWhere('deskripsi', 'like', "%{$q}%")
-                ->orWhere('lokasi_text', 'like', "%{$q}%"));
+            $q = $this->sanitizeSearch($request->input('q'));
+            if ($q === null) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->where(fn ($sub) => $sub
+                    ->where('judul', 'like', "%{$q}%")
+                    ->orWhere('deskripsi', 'like', "%{$q}%")
+                    ->orWhere('lokasi_text', 'like', "%{$q}%"));
+            }
         }
 
         $cols = [
@@ -273,6 +287,7 @@ class ReportController extends Controller
 
         return response()->streamDownload(function () use ($query, $cols) {
             $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF"); // BOM UTF-8 supaya Excel membaca encoding dengan benar.
             fputcsv($out, array_values($cols));
             $query->chunk(500, function ($reports) use ($out, $cols) {
                 foreach ($reports as $r) {
@@ -282,13 +297,16 @@ class ReportController extends Controller
                         if ($key === 'created_at' && $val) {
                             $val = \Illuminate\Support\Carbon::parse($val)->format('Y-m-d H:i');
                         }
-                        $row[] = is_null($val) ? '' : $val;
+                        $row[] = is_null($val) ? '' : $this->sanitizeCsvCell((string) $val);
                     }
                     fputcsv($out, $row);
                 }
             });
             fclose($out);
-        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Cache-Control' => 'private, no-store, no-cache, must-revalidate',
+        ]);
     }
 
     public function store(Request $request)
@@ -356,6 +374,10 @@ class ReportController extends Controller
             ]);
 
             $report->status = $validated['status'];
+            if ($validated['status'] !== 'selesai') {
+                // Keluar dari status selesai -> konfirmasi pelapor tidak lagi relevan.
+                $report->konfirmasi_user = null;
+            }
             $report->save();
         });
 
@@ -406,5 +428,21 @@ class ReportController extends Controller
         });
 
         return response()->json(['message' => 'Semua riwayat laporan telah berhasil dibersihkan.']);
+    }
+
+    private function sanitizeSearch(string $raw): ?string
+    {
+        // Escaping wildcard LIKE ('%'/'_') agar input user tidak jadi wildcard.
+        $q = trim($raw);
+        if (strlen($q) < 3) {
+            return null;
+        }
+        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $q);
+    }
+
+    private function sanitizeCsvCell(string $value): string
+    {
+        // Cegah CSV formula injection: sel diawali '=','+','-','@' diberi awalan petik.
+        return preg_match('/^[=+\-@]/', $value) ? "'" . $value : $value;
     }
 }

@@ -36,6 +36,7 @@ class HomePageState extends State<HomePage> {
   bool _isLoading = true;
   String? _error;
   String? _kategoriFilter;
+  int _reqSeq = 0;
 
   @override
   void initState() {
@@ -45,35 +46,47 @@ class HomePageState extends State<HomePage> {
 
   void refresh() => _load();
 
+  String _initial(String? a, String? b) =>
+      ((a != null && a.isNotEmpty) ? a : (b ?? 'R')).substring(0, 1).toUpperCase();
+
   Future<void> _load() async {
+    final seq = ++_reqSeq;
     if (!mounted) return;
     setState(() {
       _isLoading = true;
       _error = null;
     });
     try {
-      _user = await locator<AuthService>().getMe();
-      final stats = await _api.getStats();
-      final unseen = await NotifikasiService.instance.fetchUnseen();
-      _laporanList = await _api.fetchReportsAsModel(limit: 200, kategori: _kategoriFilter);
-      if (mounted) {
-        setState(() {
-          _unreadCount = unseen.length;
-          _totalLaporan = (stats['total'] as num?)?.toInt() ?? _laporanList.length;
-          _pending = (stats['pending'] as num?)?.toInt() ?? 0;
-          _selesai = (stats['selesai'] as num?)?.toInt() ?? 0;
-          _leaderboard = (stats['leaderboard'] as List? ?? [])
-              .map((e) => MapEntry(
-                    (e as Map)['name']?.toString() ?? 'Unknown',
-                    ((e['total'] ?? 0) as num).toInt(),
-                  ))
-              .toList();
-        });
-      }
+      // Satu RTT: semua permintaan paralel, masing-masing fallback ke default.
+      final results = await Future.wait<Object?>([
+        locator<AuthService>().getMe().catchError((_) => null),
+        _api.getStats().catchError((_) => <String, dynamic>{}),
+        NotifikasiService.instance.fetchUnseen().catchError((_) => <Laporan>[]),
+        _api
+            .fetchReportsAsModel(limit: 20, kategori: _kategoriFilter)
+            .catchError((_) => <Laporan>[]),
+      ]);
+      if (seq != _reqSeq || !mounted) return;
+      final stats = results[1] as Map<String, dynamic>;
+      setState(() {
+        _user = results[0] as User?;
+        _laporanList = results[3] as List<Laporan>;
+        _unreadCount = (results[2] as List<Laporan>).length;
+        _totalLaporan = (stats['total'] as num?)?.toInt() ?? 0;
+        _pending = (stats['pending'] as num?)?.toInt() ?? 0;
+        _selesai = (stats['selesai'] as num?)?.toInt() ?? 0;
+        _leaderboard = (stats['leaderboard'] as List? ?? [])
+            .map((e) => MapEntry(
+                  (e as Map)['name']?.toString() ?? 'Unknown',
+                  ((e['total'] ?? 0) as num).toInt(),
+                ))
+            .toList();
+      });
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (seq != _reqSeq || !mounted) return;
+      setState(() => _error = e.toString());
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (seq == _reqSeq && mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -144,7 +157,7 @@ class HomePageState extends State<HomePage> {
                 radius: 22,
                 backgroundColor: Colors.white.withValues(alpha: 0.2),
                 child: Text(
-                  (_user?.name ?? _user?.username ?? 'R').substring(0, 1).toUpperCase(),
+                  _initial(_user?.name, _user?.username),
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 18),
                 ),
               ),

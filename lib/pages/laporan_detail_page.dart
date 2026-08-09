@@ -26,13 +26,15 @@ class LaporanDetailPage extends StatefulWidget {
 class _LaporanDetailPageState extends State<LaporanDetailPage> {
   late Laporan _currentLaporan;
   bool _voting = false;
+  bool _confirming = false;
   final _authService = locator<AuthService>();
   final _apiClient = locator<ApiClient>();
 
   @override
   void initState() {
     super.initState();
-    _currentLaporan = widget.laporan;
+    // Salin, jangan merujuk objek list parent → snapshot mandiri.
+    _currentLaporan = widget.laporan.copyWithLaporan();
     _refreshDetail();
   }
 
@@ -40,9 +42,14 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
     if (!mounted) return;
     try {
       final fresh = await _apiClient.getReport(_currentLaporan.id);
-      if (mounted) setState(() => _currentLaporan = fresh);
+      if (!mounted || _voting) return;
+      setState(() => _currentLaporan = fresh);
     } catch (_) {
-      // Jika fetch detail gagal, gunakan data list yang sudah ada.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Gagal memuat detail terbaru')),
+        );
+      }
     }
   }
 
@@ -103,6 +110,8 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
   }
 
   Future<void> _confirm(String konfirmasi) async {
+    if (_confirming) return;
+    setState(() => _confirming = true);
     try {
       await _apiClient.confirmReport(_currentLaporan.id, konfirmasi);
       if (!mounted) return;
@@ -116,6 +125,8 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
           const SnackBar(content: Text('Gagal menyimpan konfirmasi')),
         );
       }
+    } finally {
+      if (mounted) setState(() => _confirming = false);
     }
   }
 
@@ -224,7 +235,7 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
                 children: [
                   Expanded(
                     child: FilledButton.tonalIcon(
-                      onPressed: () => _confirm('sesuai'),
+                      onPressed: _confirming ? null : () => _confirm('sesuai'),
                       icon: const Icon(Icons.check_rounded, size: 18),
                       label: const Text('Sudah sesuai'),
                     ),
@@ -232,7 +243,7 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () => _confirm('tidak_tuntas'),
+                      onPressed: _confirming ? null : () => _confirm('tidak_tuntas'),
                       icon: const Icon(Icons.close_rounded, size: 18),
                       label: const Text('Belum tuntas'),
                     ),

@@ -24,8 +24,8 @@ class ReportUpdate {
   factory ReportUpdate.fromJson(Map<String, dynamic> json) {
     final docPath = json['foto_dokumentasi'] as String?;
     return ReportUpdate(
-      id: json['id'],
-      reportId: json['report_id'],
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      reportId: (json['report_id'] as num?)?.toInt() ?? 0,
       status: json['status'] ?? 'unknown',
       keterangan: json['keterangan'] as String?,
       namaPetugas: json['nama_petugas'] as String?,

@@ -1,6 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
+import '../../models/kategori.dart';
 import '../tokens.dart';
 
 const _chartColors = [
@@ -12,14 +13,6 @@ const _chartColors = [
   Color(0xFFB0BEC5),
 ];
 
-const _kategoriNames = {
-  'sampah': 'Sampah',
-  'pencemaran': 'Pencemaran',
-  'infrastruktur': 'Infrastruktur',
-  'fauna': 'Fauna',
-  'flora': 'Flora',
-  'laimnya': 'Lainnya',
-};
 
 /// Grafik bar: tren laporan 7 hari terakhir (dari stats['trend'] 30 hari).
 class TrenChart extends StatelessWidget {
@@ -137,7 +130,7 @@ class KategoriDonut extends StatelessWidget {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          _kategoriNames[entries[i].key] ?? entries[i].key,
+                          kategoriLabel(entries[i].key),
                           style: Theme.of(context).textTheme.bodySmall,
                           overflow: TextOverflow.ellipsis,
                         ),

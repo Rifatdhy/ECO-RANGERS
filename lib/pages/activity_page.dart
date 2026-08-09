@@ -15,10 +15,10 @@ class ActivityPage extends StatefulWidget {
   const ActivityPage({super.key});
 
   @override
-  State<ActivityPage> createState() => _ActivityPageState();
+  State<ActivityPage> createState() => ActivityPageState();
 }
 
-class _ActivityPageState extends State<ActivityPage> {
+class ActivityPageState extends State<ActivityPage> {
   final ApiClient _api = locator<ApiClient>();
   User? _user;
   List<Laporan> _all = [];
@@ -30,6 +30,8 @@ class _ActivityPageState extends State<ActivityPage> {
     super.initState();
     _load();
   }
+
+  void refresh() => _load();
 
   Future<void> _load() async {
     if (!mounted) return;

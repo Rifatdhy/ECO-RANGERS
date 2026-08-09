@@ -1,9 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-import '../config.dart';
 import '../locator.dart';
 import '../models/laporan.dart';
 import '../models/user.dart';
@@ -14,6 +12,7 @@ import '../ui/widgets/admin_charts.dart';
 import '../ui/widgets/filter_chips.dart';
 import '../ui/widgets/report_card.dart';
 import '../ui/widgets/state_views.dart';
+import '../utils/save_file.dart';
 import 'auth_page.dart';
 import 'laporan_detail_page.dart';
 
@@ -34,6 +33,7 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
   final List<String> _filterOptions = ['Semua', 'Pending', 'Diproses', 'Selesai', 'Ditolak'];
   String _searchQuery = '';
   Timer? _debounce;
+  int _reqSeq = 0;
 
   @override
   void initState() {
@@ -42,6 +42,7 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
   }
 
   Future<void> _loadData() async {
+    final seq = ++_reqSeq;
     if (!mounted) return;
     setState(() => _isLoading = true);
     try {
@@ -54,17 +55,17 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
         ),
         _apiClient.getStats(),
       ]);
+      if (seq != _reqSeq || !mounted) return;
       _reports = results[0] as List<Laporan>;
       _stats = results[1] as Map<String, dynamic>;
-      if (mounted) setState(() {});
+      setState(() {});
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal memuat data: ${e.toString()}')),
-        );
-      }
+      if (seq != _reqSeq || !mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memuat data: ${e.toString()}')),
+      );
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (seq == _reqSeq && mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -83,21 +84,20 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
   }
 
   Future<void> _exportCsv() async {
-    final t = await locator<AuthService>().getToken();
-    if (t == null) return;
-    final query = <String, String>{
-      'token': t,
-      if (_selectedFilter.toLowerCase() != 'semua') 'status': _selectedFilter.toLowerCase(),
-      if (_searchQuery.isNotEmpty) 'q': _searchQuery,
-    };
-    final uri = Uri.parse('$baseUrl/api/admin/export/reports')
-        .replace(queryParameters: query);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tidak dapat mengekspor laporan')),
+    try {
+      final bytes = await _apiClient.downloadReportCsv(
+        status: _selectedFilter,
+        q: _searchQuery.isEmpty ? null : _searchQuery,
       );
+      if (!mounted) return;
+      final filename = 'laporan-eco-rangers-${DateTime.now().toIso8601String().split('T').first}.csv';
+      await saveCsvFile(bytes, filename);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal mengekspor: ${e.toString()}')),
+        );
+      }
     }
   }
 

@@ -12,18 +12,15 @@ class ReportCard extends StatelessWidget {
     super.key,
     required this.laporan,
     required this.onTap,
-    this.highlightNew = false,
   });
 
   final Laporan laporan;
   final VoidCallback onTap;
-  final bool highlightNew;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final hasPhoto = laporan.fotoUrl != null && laporan.fotoUrl!.isNotEmpty;
-    final isNew = highlightNew && DateTime.now().difference(laporan.createdAt).inDays <= 1;
 
     return Card(
       child: InkWell(
@@ -63,21 +60,6 @@ class ReportCard extends StatelessWidget {
                             style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
                           ),
                         ),
-                        if (isNew)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: AppColors.success.withValues(alpha: 0.14),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              'BARU',
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                color: AppColors.success,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
                       ],
                     ),
                     const SizedBox(height: AppSpacing.xs),

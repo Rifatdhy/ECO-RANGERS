@@ -14,6 +14,8 @@ class AuthService {
   // Client HTTP di-reuse untuk semua request auth (pooling koneksi).
   final http.Client _client = http.Client();
 
+  Future<T> _to<T>(Future<T> f) => f.timeout(const Duration(seconds: 15));
+
   static const _tokenKey = 'token';
   static const _userKey = 'current_user';
   // Di web tidak ada keystore OS; gunakan SharedPreferences (sama saja
@@ -30,7 +32,7 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    final res = await _client.post(
+    final res = await _to(_client.post(
       api('/api/register'),
       headers: {
         'Content-Type': 'application/json',
@@ -41,7 +43,7 @@ class AuthService {
         'email': email,
         'password': password,
       }),
-    );
+    ));
     final data = _decode(res.body);
     if (res.statusCode >= 200 && res.statusCode < 300) {
       await _writeToken(data['token'] ?? '');
@@ -56,14 +58,14 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    final res = await _client.post(
+    final res = await _to(_client.post(
       api('/api/login'),
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
       body: jsonEncode({'email': email, 'password': password}),
-    );
+    ));
     final data = _decode(res.body);
     if (res.statusCode >= 200 && res.statusCode < 300) {
       await _writeToken(data['token'] ?? '');
@@ -81,10 +83,10 @@ class AuthService {
     if (_currentUser != null) return _currentUser;
 
     try {
-      final res = await _client.get(
+      final res = await _to(_client.get(
         api('/api/me'),
         headers: {'Accept': 'application/json', 'Authorization': 'Bearer $t'},
-      );
+      ));
       if (res.statusCode == 200) {
         _currentUser = User.fromJson(_decode(res.body));
         return _currentUser;
@@ -106,10 +108,10 @@ class AuthService {
     final t = await getToken();
     if (t != null) {
       try {
-        await _client.post(
+        await _to(_client.post(
           api('/api/logout'),
           headers: {'Accept': 'application/json', 'Authorization': 'Bearer $t'},
-        );
+        ));
       } catch (e) {
         // Abaikan error
       }

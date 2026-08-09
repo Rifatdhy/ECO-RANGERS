@@ -8,8 +8,8 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// Rute ini akan menangani permintaan file dari storage secara manual
-// agar melewati middleware CORS
+// Rute storage untuk file publik (foto laporan/dokumentasi). CORS sudah
+// ditangani config/cors.php paths; rute ini hanya streaming file secara manual.
 Route::get('storage/{path}', function ($path) {
     // Keamanan dasar untuk mencegah directory traversal
     if (strpos($path, '..') !== false) {

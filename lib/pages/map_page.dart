@@ -15,10 +15,10 @@ class MapPage extends StatefulWidget {
   const MapPage({super.key});
 
   @override
-  State<MapPage> createState() => _MapPageState();
+  State<MapPage> createState() => MapPageState();
 }
 
-class _MapPageState extends State<MapPage> {
+class MapPageState extends State<MapPage> {
   final ApiClient _api = locator<ApiClient>();
   List<Laporan> _reports = [];
   bool _loading = true;
@@ -30,6 +30,8 @@ class _MapPageState extends State<MapPage> {
     super.initState();
     _load();
   }
+
+  void refresh() => _load();
 
   Future<void> _load() async {
     if (!mounted) return;

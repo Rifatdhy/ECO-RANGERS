@@ -11,6 +11,7 @@ class ReportFactory extends Factory
     {
         return [
             'user_id' => User::inRandomOrder()->value('id'),
+            'kategori' => $this->faker->randomElement(['sampah','pencemaran','infrastruktur','fauna','flora','laimnya']),
             'judul' => $this->faker->sentence(3),
             'deskripsi' => $this->faker->paragraph(),
             'lokasi_text' => $this->faker->city(),

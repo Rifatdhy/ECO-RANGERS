@@ -39,22 +39,3 @@ class StatusBadge extends StatelessWidget {
   }
 }
 
-class StatusDot extends StatelessWidget {
-  const StatusDot({super.key, required this.color, this.size = 12});
-
-  final Color color;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-        border: Border.all(color: Theme.of(context).colorScheme.surface, width: 2),
-      ),
-    );
-  }
-}

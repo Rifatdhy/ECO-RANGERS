@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../locator.dart';
 import '../models/laporan.dart';
 import 'api_client.dart';
 import 'auth_service.dart';
@@ -29,13 +30,18 @@ class NotifikasiService {
     }
   }
 
+  Future<bool> _baselineExists() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.containsKey(_baselineKey);
+  }
+
   Future<void> _writeBaseline(Map<String, String> base) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_baselineKey, jsonEncode(base));
   }
 
   Future<List<Laporan>> _fetchMine() async {
-    final api = ApiClient();
+    final api = locator<ApiClient>();
     return api.fetchReportsAsModel(limit: 500);
   }
 
@@ -46,8 +52,16 @@ class NotifikasiService {
     if (user == null) return [];
 
     final reports = await _fetchMine();
-    final baseline = await _readBaseline();
 
+    // Baseline belum pernah ditulis → inisialisasi diam-diam, tanpa notif.
+    if (!await _baselineExists()) {
+      await _writeBaseline({
+        for (final l in reports) '${l.id}': l.status.toLowerCase(),
+      });
+      return [];
+    }
+
+    final baseline = await _readBaseline();
     return reports.where((l) {
       final cur = l.status.toLowerCase();
       final prev = baseline['${l.id}'];

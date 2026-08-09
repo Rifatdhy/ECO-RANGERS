@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use App\Models\User;
@@ -12,7 +13,7 @@ class ReportStatusTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function user_can_update_report_status()
     {
         // GIVEN admin login dan satu laporan sudah ada
@@ -30,7 +31,7 @@ class ReportStatusTest extends TestCase
                  ->assertJsonPath('report.status', 'selesai');
     }
 
-    /** @test */
+    #[Test]
     public function invalid_status_is_rejected()
     {
         // GIVEN admin login dan satu laporan sudah ada

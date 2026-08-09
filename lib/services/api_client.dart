@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import '../config.dart';
@@ -191,10 +192,10 @@ class ApiClient {
       ..headers['Authorization'] = 'Bearer ${t ?? ''}';
 
     req.fields['status'] = status.toLowerCase();
-    if (namaPetugas != null) {
+    if (namaPetugas != null && namaPetugas.isNotEmpty) {
       req.fields['nama_petugas'] = namaPetugas;
     }
-    if (keterangan != null) {
+    if (keterangan != null && keterangan.isNotEmpty) {
       req.fields['keterangan'] = keterangan;
     }
     
@@ -214,43 +215,29 @@ class ApiClient {
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
-  Future<void> deleteReport(int id) async {
+  /// Unduh CSV ekspor admin; token dikirim via header, bukan URL.
+  Future<Uint8List> downloadReportCsv({String? status, String? q}) async {
     final t = await AuthService.instance.getToken();
+    final qy = <String, String>{
+      if (status != null && status.toLowerCase() != 'semua')
+        'status': status.toLowerCase(),
+      if (q != null && q.isNotEmpty) 'q': q,
+    };
     final res = await _guard(
-      _client.delete(
-        api('/api/reports/$id'),
+      _client.get(
+        Uri.parse('$baseUrl/api/admin/export/reports')
+            .replace(queryParameters: qy),
         headers: {
           'Accept': 'application/json',
           if (t != null) 'Authorization': 'Bearer $t',
         },
       ),
-      'DELETE /api/reports/$id',
+      'CSV export',
     );
     if (res.statusCode != 200) {
       _checkAuth(res);
-      throw Exception('DELETE gagal: ${res.statusCode} ${res.body}');
+      throw Exception('Export gagal: ${res.statusCode} ${res.body}');
     }
-  }
-
-  Future<String> clearAllReports() async {
-    final t = await AuthService.instance.getToken();
-    final res = await _guard(
-      _client.post(
-        api('/api/admin/clear-all-reports'),
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': 'Bearer ${t ?? ''}',
-        },
-      ),
-      'POST /api/admin/clear-all-reports',
-    );
-
-    if (res.statusCode != 200) {
-      _checkAuth(res);
-      throw Exception('Gagal membersihkan laporan: ${res.statusCode} ${res.body}');
-    }
-
-    final data = jsonDecode(res.body) as Map<String, dynamic>;
-    return data['message'] ?? 'Proses selesai.';
+    return res.bodyBytes;
   }
 }

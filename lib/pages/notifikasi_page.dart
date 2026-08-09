@@ -5,6 +5,7 @@ import '../models/laporan.dart';
 import '../services/notifikasi_service.dart';
 import '../ui/status_info.dart';
 import '../ui/tokens.dart';
+import '../ui/widgets/state_views.dart';
 import '../ui/widgets/status_badge.dart';
 import 'laporan_detail_page.dart';
 
@@ -46,16 +47,11 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
     // Tetapkan baseline baru → notifikasi ini tak lagi unread.
     await NotifikasiService.instance.markAllSeen();
     if (!mounted) return;
+    setState(() => _unseen = []);
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => LaporanDetailPage(laporan: l)),
-    ).then((_) {
-      if (mounted) {
-        setState(() {
-          _unseen = _unseen.where((u) => u.id != l.id).toList();
-        });
-      }
-    });
+    );
   }
 
   @override
@@ -68,12 +64,8 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
             ? const Center(child: CircularProgressIndicator())
             : _error != null
                 ? ListView(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(AppSpacing.lg),
-                        child: Text(_error!, style: TextStyle(color: AppColors.error)),
-                      ),
-                    ],
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: [ErrorRetry(onRetry: _load, message: _error!, compact: true)],
                   )
                 : _unseen.isEmpty
                     ? ListView(

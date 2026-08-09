@@ -16,6 +16,11 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   final _homeKey = GlobalKey<HomePageState>();
+  final _mapKey = GlobalKey<MapPageState>();
+  final _activityKey = GlobalKey<ActivityPageState>();
+  final _profileKey = GlobalKey<ProfilePageState>();
+  // Lazy-build: tab hanya di-build saat pertama kali dipilih.
+  final Set<int> _built = {0};
   int _index = 0;
 
   void _openCreateReport() {
@@ -28,6 +33,23 @@ class _MainShellState extends State<MainShell> {
     });
   }
 
+  void _onDestinationSelected(int i) {
+    setState(() {
+      _built.add(i);
+      _index = i;
+    });
+    switch (i) {
+      case 0:
+        _homeKey.currentState?.refresh();
+      case 1:
+        _mapKey.currentState?.refresh();
+      case 3:
+        _activityKey.currentState?.refresh();
+      case 4:
+        _profileKey.currentState?.refresh();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -35,10 +57,10 @@ class _MainShellState extends State<MainShell> {
         index: _index,
         children: [
           HomePage(key: _homeKey, openCreateReport: _openCreateReport),
-          const MapPage(),
+          _built.contains(1) ? MapPage(key: _mapKey) : const SizedBox.shrink(),
           const SizedBox.shrink(), // slot FAB tengah (tidak ada halaman)
-          const ActivityPage(),
-          const ProfilePage(),
+          _built.contains(3) ? ActivityPage(key: _activityKey) : const SizedBox.shrink(),
+          _built.contains(4) ? ProfilePage(key: _profileKey) : const SizedBox.shrink(),
         ],
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
@@ -80,7 +102,7 @@ class _MainShellState extends State<MainShell> {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        onDestinationSelected: _onDestinationSelected,
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),

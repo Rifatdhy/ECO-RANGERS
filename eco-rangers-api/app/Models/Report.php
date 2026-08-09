@@ -45,18 +45,6 @@ class Report extends Model
         return $this->hasMany(\App\Models\Vote::class);
     }
 
-    public function voteCount(): int
-    {
-        return $this->votes()->count();
-    }
-
-    public function isVotedBy(?int $userId): bool
-    {
-        if (! $userId) {
-            return false;
-        }
-        return $this->votes()->where('user_id', $userId)->exists();
-    }
 
     protected static function booted()
     {

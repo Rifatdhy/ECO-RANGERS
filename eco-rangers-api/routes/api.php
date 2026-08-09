@@ -96,9 +96,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reports', [ReportController::class, 'index']);
     Route::get('/reports/stats', [ReportController::class, 'stats']);
     Route::get('/reports/{report}', [ReportController::class, 'show']);
-    Route::post('/reports', [ReportController::class, 'store']);
-    Route::post('/reports/{report}/vote', [ReportController::class, 'toggleVote']);
-    Route::post('/reports/{report}/confirm', [ReportController::class, 'confirmResolution']);
+    Route::post('/reports', [ReportController::class, 'store'])->middleware('throttle:10,1');
+    Route::post('/reports/{report}/vote', [ReportController::class, 'toggleVote'])->middleware('throttle:30,1');
+    Route::post('/reports/{report}/confirm', [ReportController::class, 'confirmResolution'])->middleware('throttle:30,1');
 });
 
 // Endpoint KHUSUS ADMIN
@@ -112,6 +112,8 @@ Route::middleware(['auth:sanctum', 'ability:role:admin'])->group(function () {
     Route::post('/admin/clear-all-reports', [ReportController::class, 'clearAll']);
 });
 
-// Export CSV: TANPA middleware auth (register lewat Bearer ATAU ?token=),
-// karena membuka via browser/url_launcher tidak bisa membawa header.
+// Export CSV: TANPA middleware auth (Bearer ATAU ?token=) karena url_launcher/browser
+// tidak bisa membawa header. Token via query hanya di endpoint ini (response diberi
+// Cache-Control: no-store). JANGAN tiru pola token-di-URL di endpoint lain;
+// gunakan Authorization header bila memungkinkan.
 Route::get('/admin/export/reports', [ReportController::class, 'exportCsv']);

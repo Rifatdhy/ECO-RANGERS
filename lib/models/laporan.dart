@@ -82,6 +82,25 @@ class Laporan {
     );
   }
 
+  /// Salinan mandiri (snapshot), updates & user direferensikan apa adanya.
+  Laporan copyWithLaporan() => Laporan(
+        id: id,
+        judul: judul,
+        kategori: kategori,
+        deskripsi: deskripsi,
+        lokasiText: lokasiText,
+        latitude: latitude,
+        longitude: longitude,
+        fotoPath: fotoPath,
+        fotoUrl: fotoUrl,
+        status: status,
+        konfirmasiUser: konfirmasiUser,
+        voteCount: voteCount,
+        votedByMe: votedByMe,
+        createdAt: createdAt,
+        updates: updates,
+        user: user,
+      );
   String get createdAtLabel {
     final d = createdAt;
     final day = d.day.toString().padLeft(2, '0');
