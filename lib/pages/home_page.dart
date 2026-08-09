@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 
 import '../locator.dart';
+import '../models/kategori.dart';
 import '../models/laporan.dart';
 import '../models/user.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
+import '../services/notifikasi_service.dart';
 import '../ui/tokens.dart';
 import '../ui/widgets/report_card.dart';
 import '../ui/widgets/section_header.dart';
 import '../ui/widgets/state_views.dart';
 import 'laporan_detail_page.dart';
 import 'map_page.dart';
+import 'notifikasi_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key, this.openCreateReport});
@@ -26,8 +29,13 @@ class HomePageState extends State<HomePage> {
   User? _user;
   List<Laporan> _laporanList = [];
   List<MapEntry<String, int>> _leaderboard = [];
+  int _totalLaporan = 0;
+  int _pending = 0;
+  int _selesai = 0;
+  int _unreadCount = 0;
   bool _isLoading = true;
   String? _error;
+  String? _kategoriFilter;
 
   @override
   void initState() {
@@ -38,15 +46,30 @@ class HomePageState extends State<HomePage> {
   void refresh() => _load();
 
   Future<void> _load() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _error = null;
     });
     try {
       _user = await locator<AuthService>().getMe();
-      _laporanList = await _api.fetchReportsAsModel();
-      _leaderboard = _computeLeaderboard();
-      if (mounted) setState(() {});
+      final stats = await _api.getStats();
+      final unseen = await NotifikasiService.instance.fetchUnseen();
+      _laporanList = await _api.fetchReportsAsModel(limit: 200, kategori: _kategoriFilter);
+      if (mounted) {
+        setState(() {
+          _unreadCount = unseen.length;
+          _totalLaporan = (stats['total'] as num?)?.toInt() ?? _laporanList.length;
+          _pending = (stats['pending'] as num?)?.toInt() ?? 0;
+          _selesai = (stats['selesai'] as num?)?.toInt() ?? 0;
+          _leaderboard = (stats['leaderboard'] as List? ?? [])
+              .map((e) => MapEntry(
+                    (e as Map)['name']?.toString() ?? 'Unknown',
+                    ((e['total'] ?? 0) as num).toInt(),
+                  ))
+              .toList();
+        });
+      }
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
     } finally {
@@ -54,22 +77,13 @@ class HomePageState extends State<HomePage> {
     }
   }
 
-  List<MapEntry<String, int>> _computeLeaderboard() {
-    final counts = <String, int>{};
-    for (final l in _laporanList) {
-      final name = l.user?.name ?? l.user?.username;
-      if (name == null || name.isEmpty) continue;
-      counts[name] = (counts[name] ?? 0) + 1;
-    }
-    final sorted = counts.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    return sorted.take(5).toList();
+  Future<void> _openNotifications() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const NotifikasiPage()),
+    );
+    if (mounted) _load();
   }
-
-  int get _pending =>
-      _laporanList.where((l) => l.status.toLowerCase() == 'pending').length;
-  int get _selesai =>
-      _laporanList.where((l) => l.status.toLowerCase() == 'selesai').length;
 
   @override
   Widget build(BuildContext context) {
@@ -153,12 +167,40 @@ class HomePageState extends State<HomePage> {
                   ],
                 ),
               ),
+              IconButton(
+                tooltip: 'Notifikasi',
+                onPressed: _openNotifications,
+                icon: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Icon(Icons.notifications_outlined, color: Colors.white),
+                    if (_unreadCount > 0)
+                      Positioned(
+                        right: -6,
+                        top: -6,
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                          decoration: BoxDecoration(
+                            color: AppColors.warning,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            '$_unreadCount',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.black87, fontSize: 9, fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.xl),
           Row(
             children: [
-              _heroStat(context, '${_laporanList.length}', 'Laporan', Icons.assessment_outlined),
+              _heroStat(context, '$_totalLaporan', 'Laporan', Icons.assessment_outlined),
               const SizedBox(width: AppSpacing.sm),
               _heroStat(context, '$_pending', 'Menunggu', Icons.hourglass_bottom_rounded),
               const SizedBox(width: AppSpacing.sm),
@@ -238,9 +280,11 @@ class HomePageState extends State<HomePage> {
           const SizedBox(height: AppSpacing.lg),
           SectionHeader(
             title: 'Laporan Terbaru',
-            subtitle: '${_laporanList.length} laporan tercatat di komunitas',
+            subtitle: '$_totalLaporan laporan tercatat di komunitas',
             padding: const EdgeInsets.only(bottom: AppSpacing.sm),
           ),
+          _buildCategoryFilter(),
+          const SizedBox(height: AppSpacing.sm),
           if (_laporanList.isEmpty)
             const EmptyState(
               icon: Icons.forest_outlined,
@@ -256,6 +300,29 @@ class HomePageState extends State<HomePage> {
               ],
             ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryFilter() {
+    return SizedBox(
+      height: 42,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemBuilder: (context, i) {
+          final c = reportCategories[i];
+          final selected = _kategoriFilter == c.value;
+          return ChoiceChip(
+            label: Text('${c.icon} ${c.label}'),
+            selected: selected,
+            onSelected: (_) {
+              setState(() => _kategoriFilter = selected ? null : c.value);
+              _load();
+            },
+          );
+        },
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemCount: reportCategories.length,
       ),
     );
   }

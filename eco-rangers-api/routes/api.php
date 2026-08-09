@@ -5,20 +5,20 @@ use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AdminAuthController;
 
+$loginThrottle = 'throttle:' . config('security.login_throttle') . ',1';
+
 // Endpoint publik
 Route::get('/ping', fn () => response()->json(['ok' => true]));
-Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:' . env('THROTTLE_LOGIN', '10') . ',1');
-Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:' . env('THROTTLE_LOGIN', '10') . ',1');
-Route::post('/admin/login', [AdminAuthController::class, 'login'])->middleware('throttle:' . env('THROTTLE_LOGIN', '10') . ',1');
+Route::post('/register', [AuthController::class, 'register'])->middleware($loginThrottle);
+Route::post('/login', [AuthController::class, 'login'])->middleware($loginThrottle);
+Route::post('/admin/login', [AdminAuthController::class, 'login'])->middleware($loginThrottle);
 
-// Rute testing (hanya aktif di environment local/testing) untuk membantu
-// pembuatan data yang diperlukan selama pengujian acceptance.
-if (app()->environment(['local', 'testing'])) {
+// Rute testing: hanya aktif bila config('security.testing_routes') true
+// (default local/testing). Di produksi WAJIB false lewat .env.
+if (config('security.testing_routes')) {
     Route::post('/testing/seed-admin', function () {
-        // Buat atau perbarui admin dengan email dari env
-        $email = env('ADMIN_EMAIL', 'admin@gmail.com');
-        $username = 'admin';
-        $password = env('ADMIN_PASSWORD', '12345678');
+        $email = config('security.admin_email');
+        $password = config('security.admin_password');
 
         if ($password === null || $password === '') {
             return response()->json(['created' => false, 'message' => 'ADMIN_PASSWORD tidak diset'], 500);
@@ -27,7 +27,7 @@ if (app()->environment(['local', 'testing'])) {
         $user = \App\Models\User::updateOrCreate(
             ['email' => $email],
             [
-                'username' => $username,
+                'username' => 'admin',
                 'name' => 'Admin User',
                 'password' => $password, // otomatis di-hash oleh cast 'hashed'
                 'is_admin' => true,
@@ -39,9 +39,7 @@ if (app()->environment(['local', 'testing'])) {
 
     // Rute testing: reset database (migrate:fresh --seed)
     Route::post('/testing/reset', function () {
-        // Hati-hati: hanya aktif di environment testing/local
         try {
-            // Ensure SQLite database file exists when using file-based sqlite.
             if (config('database.default') === 'sqlite') {
                 $db = config('database.connections.sqlite.database');
                 $path = $db ?: database_path('database.sqlite');
@@ -50,7 +48,6 @@ if (app()->environment(['local', 'testing'])) {
                     if (! file_exists($dir)) {
                         mkdir($dir, 0755, true);
                     }
-                    // attempt to create writable sqlite file
                     if (@file_put_contents($path, '') === false) {
                         throw new \RuntimeException('Unable to create sqlite database file at: ' . $path);
                     }
@@ -63,31 +60,41 @@ if (app()->environment(['local', 'testing'])) {
             }
             return response()->json(['reset' => true]);
         } catch (\Throwable $e) {
-            // Log and return an explicit error so test hooks can display helpful
-            // messages instead of failing with an opaque 500.
             \Log::error('Testing.reset failed: ' . $e->getMessage(), ['exception' => $e]);
             return response()->json(['reset' => false, 'message' => 'Reset failed: ' . $e->getMessage()], 500);
         }
     });
 }
 
-// Rute proxy untuk mengambil file
+// Rute proxy untuk mengambil file (foto laporan/dokumentasi).
+// Whitelist MIME (hanya gambar) + anti path traversal + cache lama (path unik per upload).
 Route::get('/files/{path}', function ($path) {
     if (strpos($path, '..') !== false) {
         abort(403, 'Invalid path');
     }
     $disk = Illuminate\Support\Facades\Storage::disk('public');
-    if (!$disk->exists($path)) {
+    if (! $disk->exists($path)) {
         abort(404, 'File not found');
     }
-    return $disk->response($path);
-})->where('path', '.+');
+
+    $allowedMime = ['image/jpeg', 'image/png'];
+    $mime = $disk->mimeType($path);
+    if (! in_array($mime, $allowedMime, true)) {
+        abort(403, 'File type not allowed');
+    }
+
+    $response = $disk->response($path);
+    $response->headers->set('Cache-Control', 'public, max-age=31536000, immutable');
+    $response->headers->set('X-Content-Type-Options', 'nosniff');
+    return $response;
+})->where('path', '.+')->middleware('throttle:120,1');
 
 // Endpoint untuk user yang sudah login
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/reports', [ReportController::class, 'index']);
+    Route::get('/reports/stats', [ReportController::class, 'stats']);
     Route::get('/reports/{report}', [ReportController::class, 'show']);
     Route::post('/reports', [ReportController::class, 'store']);
 });
@@ -99,6 +106,6 @@ Route::middleware(['auth:sanctum', 'ability:role:admin'])->group(function () {
     Route::match(['post', 'patch'], '/reports/{report}/status', [ReportController::class, 'updateStatus']);
     Route::delete('/reports/{report}', [ReportController::class, 'destroy']);
 
-    // RUTE BARU: Untuk membersihkan semua laporan
+    // Untuk membersihkan semua laporan
     Route::post('/admin/clear-all-reports', [ReportController::class, 'clearAll']);
 });

@@ -14,7 +14,12 @@ class ReportController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        $query = Report::with(['user', 'updates'])->orderByDesc('id');
+        $query = Report::select([
+                'id', 'user_id', 'judul', 'kategori', 'deskripsi', 'lokasi_text',
+                'lat', 'lng', 'foto_path', 'status', 'created_at'
+            ])
+            ->with('user:id,name,username')
+            ->orderByDesc('id');
 
         // Fitur filter berdasarkan status
         if ($request->has('status') && $request->input('status') !== '') {
@@ -24,15 +29,28 @@ class ReportController extends Controller
             }
         }
 
-        if ($user) {
-            // Admin dapat melihat semua laporan (dengan filter status jika ada).
-            // Pengguna biasa hanya dapat melihat laporan mereka sendiri.
-            if (!$user->tokenCan('role:admin')) {
-                $query->where('user_id', $user->id);
+        // Fitur filter berdasarkan kategori
+        if ($request->has('kategori') && $request->input('kategori') !== '') {
+            $kategori = strtolower($request->input('kategori'));
+            $allowed = ['sampah', 'pencemaran', 'infrastruktur', 'fauna', 'flora', 'laimnya'];
+            if (in_array($kategori, $allowed, true)) {
+                $query->where('kategori', $kategori);
             }
-        } else {
-            // Jika tidak ada user (tamu), jangan tampilkan laporan sama sekali.
-            return response()->json([]);
+        }
+
+        // Pencarian server-side: judul / deskripsi / lokasi (LIKE, case-insensitive).
+        if ($request->filled('q')) {
+            $q = trim($request->input('q'));
+            $query->where(function ($sub) use ($q) {
+                $sub->where('judul', 'like', "%{$q}%")
+                    ->orWhere('deskripsi', 'like', "%{$q}%")
+                    ->orWhere('lokasi_text', 'like', "%{$q}%");
+            });
+        }
+
+        // Admin dapat melihat semua laporan; pengguna biasa hanya miliknya.
+        if (!$user->tokenCan('role:admin')) {
+            $query->where('user_id', $user->id);
         }
 
         $reports = $query
@@ -40,14 +58,11 @@ class ReportController extends Controller
             ->limit(min(max($request->integer('limit', 200), 1), 500))
             ->get();
 
-        // Normalisasi status ke lowercase + tambah foto_url untuk konsistensi lintas skenario
+        // Normalisasi status ke lowercase + foto_url konsisten (tanpa nested updates).
         $reports->transform(function ($report) {
             $report->status = strtolower($report->status);
+            $report->kategori = strtolower($report->kategori);
             $report->foto_url = $report->foto_path ? asset('storage/' . $report->foto_path) : null;
-            $report->updates->each(function ($update) {
-                $update->foto_dokumentasi_url = $update->foto_dokumentasi ? asset('storage/' . $update->foto_dokumentasi) : null;
-                $update->status = strtolower($update->status);
-            });
             return $report;
         });
 
@@ -68,10 +83,99 @@ class ReportController extends Controller
         return response()->json($report);
     }
 
+    public function stats(Request $request)
+    {
+        $user = $request->user();
+        $query = Report::query();
+
+        if (!$user->tokenCan('role:admin')) {
+            $query->where('user_id', $user->id);
+        }
+
+        $counts = (clone $query)
+            ->selectRaw('status, COUNT(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        // Distribusi per kategori (untuk filter & insight).
+        $kategoriCounts = (clone $query)
+            ->selectRaw('kategori, COUNT(*) as total')
+            ->groupBy('kategori')
+            ->pluck('total', 'kategori');
+
+        // Leaderboard: 5 pengguna dengan laporan terbanyak (scope global untuk admin,
+        // hanya diri sendiri untuk pengguna biasa — admin saja yang relevan).
+        $leaderboard = [];
+        if ($user->tokenCan('role:admin')) {
+            $leaderboard = Report::selectRaw('user_id, users.name, users.username, COUNT(*) as total')
+                ->join('users', 'users.id', '=', 'reports.user_id')
+                ->groupBy('user_id', 'users.name', 'users.username')
+                ->orderByDesc('total')
+                ->limit(5)
+                ->get()
+                ->map(fn ($r) => [
+                    'name' => $r->name ?: $r->username,
+                    'total' => $r->total,
+                ])
+                ->toArray();
+        }
+
+        // Tren 30 hari terakhir: jumlah laporan per tanggal.
+        $daily = (clone $query)
+            ->where('created_at', '>=', now()->subDays(29)->startOfDay())
+            ->selectRaw('DATE(created_at) as tanggal, COUNT(*) as total')
+            ->groupBy('tanggal')
+            ->orderBy('tanggal')
+            ->pluck('total', 'tanggal');
+
+        $trend = [];
+        for ($i = 29; $i >= 0; $i--) {
+            $date = now()->subDays($i)->toDateString();
+            $trend[] = ['date' => $date, 'total' => (int) ($daily[$date] ?? 0)];
+        }
+
+        // Rata-rata waktu tanggap (jam): selisih created_at → update pertama.
+        $avgHours = Report::query()
+            ->whereHas('updates')
+            ->with(['updates' => fn ($u) => $u->orderBy('created_at')->limit(1)])
+            ->get()
+            ->map(function ($r) {
+                $first = $r->updates->first();
+                $base = $r->created_at;
+                if (! $first || ! $first->created_at || ! $base) {
+                    return null;
+                }
+                $diffMin = abs($first->created_at->getTimestamp() - $base->getTimestamp()) / 60;
+                return $diffMin / 60.0;
+            })
+            ->filter()
+            ->avg();
+
+        return response()->json([
+            'total' => (clone $query)->count(),
+            'pending' => (int) ($counts['pending'] ?? 0),
+            'diproses' => (int) ($counts['diproses'] ?? 0),
+            'selesai' => (int) ($counts['selesai'] ?? 0),
+            'ditolak' => (int) ($counts['ditolak'] ?? 0),
+            'kategori' => [
+                'sampah' => (int) ($kategoriCounts['sampah'] ?? 0),
+                'pencemaran' => (int) ($kategoriCounts['pencemaran'] ?? 0),
+                'infrastruktur' => (int) ($kategoriCounts['infrastruktur'] ?? 0),
+                'fauna' => (int) ($kategoriCounts['fauna'] ?? 0),
+                'flora' => (int) ($kategoriCounts['flora'] ?? 0),
+                'laimnya' => (int) ($kategoriCounts['laimnya'] ?? 0),
+            ],
+            'trend' => $trend,
+            'avg_response_hours' => $avgHours !== null ? round((float) $avgHours, 1) : null,
+            'leaderboard' => $leaderboard,
+        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate');
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
             'judul'       => ['required','string','max:255'],
+            'kategori'    => ['nullable','string','in:sampah,pencemaran,infrastruktur,fauna,flora,laimnya'],
             'deskripsi'   => ['required','string'],
             'lokasi_text' => ['nullable','string'],
             'lat'         => ['nullable','numeric'],
@@ -84,6 +188,7 @@ class ReportController extends Controller
         $report = Report::create([
             'user_id'     => $request->user()->id,
             'judul'       => $validated['judul'],
+            'kategori'    => $validated['kategori'] ?? 'laimnya',
             'deskripsi'   => $validated['deskripsi'],
             'lokasi_text' => $validated['lokasi_text'] ?? null,
             'lat'         => $validated['lat'] ?? null,
@@ -94,6 +199,7 @@ class ReportController extends Controller
 
         $report->load('user');
         $report->status = strtolower($report->status);
+        $report->kategori = strtolower($report->kategori);
         $report->foto_url = $report->foto_path ? asset('storage/' . $report->foto_path) : null;
 
         return response()->json(['report' => $report], 201);
@@ -114,15 +220,19 @@ class ReportController extends Controller
 
         $path = null;
         if ($request->hasFile('foto_dokumentasi')) {
-            $path = $request->file('foto_dokumentasi')->store('documentation', 'public');
+            $path = $request->file('foto_dokumentasi');
         }
 
-        DB::transaction(function () use ($report, $validated, $path) {
+        DB::transaction(function () use ($report, $validated, $path, $request) {
+            // Simpan file di dalam transaksi: jika DB gagal, upload di-batalkan
+            // (Laravel menghapus file yang di-store jika exception) → hindari orphan.
+            $storedPath = $path ? $path->store('documentation', 'public') : null;
+
             $report->updates()->create([
                 'status'           => $validated['status'],
                 'keterangan'       => $validated['keterangan'] ?? null,
                 'nama_petugas'     => $validated['nama_petugas'] ?? null,
-                'foto_dokumentasi' => $path,
+                'foto_dokumentasi' => $storedPath,
             ]);
 
             $report->status = $validated['status'];

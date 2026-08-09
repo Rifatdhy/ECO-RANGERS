@@ -50,10 +50,10 @@ android {
 
     buildTypes {
         release {
-            signingConfig = if (keystorePropertiesFile.exists()) {
-                signingConfigs.getByName("release")
-            } else {
-                signingConfigs.getByName("debug")
+            // Fail-fast: tanpa key.properties/keystore, release TIDAK boleh
+            // jatuh ke debug-signing. Gradle akan error "signingConfig is required".
+            if (keystorePropertiesFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
             }
         }
     }

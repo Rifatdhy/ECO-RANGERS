@@ -6,6 +6,7 @@ import '../config.dart';
 class Laporan {
   final int id;
   final String judul;
+  final String kategori;
   final String deskripsi;
   final String? lokasiText;
   final double? latitude;
@@ -20,6 +21,7 @@ class Laporan {
   Laporan({
     required this.id,
     required this.judul,
+    this.kategori = 'laimnya',
     required this.deskripsi,
     this.lokasiText,
     this.latitude,
@@ -57,6 +59,7 @@ class Laporan {
     return Laporan(
       id: json['id'] as int,
       judul: json['judul'] as String? ?? 'Tanpa Judul',
+      kategori: (json['kategori'] as String? ?? 'laimnya').toLowerCase(),
       deskripsi: json['deskripsi'] as String? ?? 'Tanpa Deskripsi',
       latitude: (json['lat'] as num?)?.toDouble(),
       longitude: (json['lng'] as num?)?.toDouble(),

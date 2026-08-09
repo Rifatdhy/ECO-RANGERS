@@ -26,3 +26,5 @@ Thumbs.db
 /.env
 /.env.*
 !/.env.example
+# Template produksi ikut repo (bukan rahasia)
+!/.env.production.example

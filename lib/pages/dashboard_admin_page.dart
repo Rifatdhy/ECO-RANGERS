@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../locator.dart';
@@ -6,6 +8,7 @@ import '../models/user.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../ui/tokens.dart';
+import '../ui/widgets/admin_charts.dart';
 import '../ui/widgets/filter_chips.dart';
 import '../ui/widgets/report_card.dart';
 import '../ui/widgets/state_views.dart';
@@ -23,10 +26,12 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
   final ApiClient _apiClient = locator<ApiClient>();
   User? _user;
   List<Laporan> _reports = [];
+  Map<String, dynamic> _stats = {};
   bool _isLoading = true;
   String _selectedFilter = 'Semua';
   final List<String> _filterOptions = ['Semua', 'Pending', 'Diproses', 'Selesai', 'Ditolak'];
   String _searchQuery = '';
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -35,10 +40,20 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
   }
 
   Future<void> _loadData() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
       _user = await locator<AuthService>().getMe();
-      _reports = await _apiClient.fetchReportsAsModel(status: _selectedFilter);
+      final results = await Future.wait([
+        _apiClient.fetchReportsAsModel(
+          status: _selectedFilter,
+          limit: 500,
+          q: _searchQuery.isEmpty ? null : _searchQuery,
+        ),
+        _apiClient.getStats(),
+      ]);
+      _reports = results[0] as List<Laporan>;
+      _stats = results[1] as Map<String, dynamic>;
       if (mounted) setState(() {});
     } catch (e) {
       if (mounted) {
@@ -49,6 +64,20 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _onSearchChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      _searchQuery = value.trim().toLowerCase();
+      _loadData();
+    });
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
   }
 
   Future<void> _logout() async {
@@ -124,18 +153,10 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
     );
   }
 
-  List<Laporan> get _filteredReports {
-    if (_searchQuery.isEmpty) return _reports;
-    return _reports.where((report) {
-      return report.judul.toLowerCase().contains(_searchQuery) ||
-          report.deskripsi.toLowerCase().contains(_searchQuery);
-    }).toList();
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final filtered = _filteredReports;
+    final filtered = _reports;
 
     return Scaffold(
       body: RefreshIndicator(
@@ -209,7 +230,7 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
                               Expanded(
                                 child: StatTile(
                                   label: 'Total laporan',
-                                  value: '${_reports.length}',
+                                  value: '${_stats['total'] ?? _reports.length}',
                                   icon: Icons.fact_check_outlined,
                                 ),
                               ),
@@ -217,7 +238,7 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
                               Expanded(
                                 child: StatTile(
                                   label: 'Menunggu',
-                                  value: '${_reports.where((r) => r.status.toLowerCase() == 'pending').length}',
+                                  value: '${_stats['pending'] ?? 0}',
                                   icon: Icons.hourglass_top_rounded,
                                 ),
                               ),
@@ -234,7 +255,7 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
                                 onPressed: _showFilterBottomSheet,
                               ),
                             ),
-                            onChanged: (value) => setState(() => _searchQuery = value.toLowerCase()),
+                            onChanged: _onSearchChanged,
                           ),
                           const SizedBox(height: 14),
                           FilterChips(
@@ -245,6 +266,8 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
                               _loadData();
                             },
                           ),
+                          const SizedBox(height: 18),
+                          _buildCharts(),
                         ],
                       ),
               ),
@@ -266,6 +289,91 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
         ),
       ),
     );
+  }
+
+  Widget _buildCharts() {
+    final theme = Theme.of(context);
+    final trend = (_stats['trend'] as List? ?? [])
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+    final kategori = Map<String, dynamic>.from(_stats['kategori'] as Map? ?? {});
+    final avgH = _stats['avg_response_hours'];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (avgH != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Row(
+                  children: [
+                    Icon(Icons.timer_outlined, color: AppColors.primary),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        'Rata-rata waktu tanggap',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ),
+                    Text(
+                      '${_formatHours(avgH)} jam',
+                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.bar_chart_rounded, color: AppColors.primary, size: 20),
+                    const SizedBox(width: AppSpacing.xs),
+                    Text('Tren 7 Hari', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                TrenChart(trend: trend),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.pie_chart_outline_rounded, color: AppColors.primary, size: 20),
+                    const SizedBox(width: AppSpacing.xs),
+                    Text('Distribusi Kategori', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                KategoriDonut(kategori: kategori),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatHours(Object? value) {
+    final h = (value as num).toDouble();
+    if (h < 1) return '${(h * 60).round()} mnt';
+    return h.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '');
   }
 
   Widget _buildEmptyState() {

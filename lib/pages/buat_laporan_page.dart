@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../locator.dart';
+import '../models/kategori.dart';
 import '../services/api_client.dart';
 import '../ui/tokens.dart';
 
@@ -19,6 +20,7 @@ class BuatLaporanPage extends StatefulWidget {
 class _BuatLaporanPageState extends State<BuatLaporanPage> {
   final _judulCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
+  String _kategori = 'sampah';
 
   int _step = 0;
   XFile? _picked;
@@ -83,6 +85,7 @@ class _BuatLaporanPageState extends State<BuatLaporanPage> {
     try {
       final result = await locator<ApiClient>().createReport(
         judul: _judulCtrl.text.trim(),
+        kategori: _kategori,
         deskripsi: _descCtrl.text.trim(),
         lat: _lat,
         lng: _lng,
@@ -226,6 +229,21 @@ class _BuatLaporanPageState extends State<BuatLaporanPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              DropdownButtonFormField<String>(
+                initialValue: _kategori,
+                decoration: const InputDecoration(
+                  labelText: 'Kategori',
+                  prefixIcon: Icon(Icons.category_outlined),
+                ),
+                items: reportCategories
+                    .map((c) => DropdownMenuItem(
+                          value: c.value,
+                          child: Text('${c.icon} ${c.label}'),
+                        ))
+                    .toList(),
+                onChanged: (v) => setState(() => _kategori = v ?? 'laimnya'),
+              ),
+              const SizedBox(height: AppSpacing.md),
               TextField(
                 controller: _judulCtrl,
                 onChanged: (_) => setState(() {}),
@@ -262,6 +280,8 @@ class _BuatLaporanPageState extends State<BuatLaporanPage> {
                       : Image.file(File(_picked!.path), height: 180, fit: BoxFit.cover),
                 ),
               const SizedBox(height: AppSpacing.md),
+              _previewRow(Icons.category_outlined, 'Kategori', '${kategoriIcon(_kategori)} ${kategoriLabel(_kategori)}'),
+              const Divider(),
               _previewRow(Icons.title_rounded, 'Judul', _judulCtrl.text.trim()),
               const Divider(),
               _previewRow(Icons.edit_outlined, 'Deskripsi', _descCtrl.text.trim()),

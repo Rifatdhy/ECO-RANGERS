@@ -22,6 +22,7 @@
         android:name="${applicationName}"
         android:label="Eco Rangers"
         android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
         android:requestLegacyExternalStorage="true"
         android:enableOnBackInvokedCallback="true">
 

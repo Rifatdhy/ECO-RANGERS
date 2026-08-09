@@ -18,6 +18,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'ability' => \Laravel\Sanctum\Http\Middleware\CheckAbilities::class,
         ]);
     })
-    ->withExceptions(function (Exceptions $exceptions): void {
-        //
+->withExceptions(function (Exceptions $exceptions): void {
+        // Teruskan exception ke Sentry bila SDK terpasang (composer require
+        // sentry/sentry-laravel). Guard class_exist supaya app tetap boot
+        // walau paket belum di-install.
+        if (class_exists(\Sentry\Laravel\Integration::class)) {
+            \Sentry\Laravel\Integration::handles($exceptions);
+        }
     })->create();

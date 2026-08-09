@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../../models/kategori.dart';
 import '../../models/laporan.dart';
 import '../../ui/tokens.dart';
 import 'state_views.dart';
@@ -90,6 +91,21 @@ class ReportCard extends StatelessWidget {
                     Row(
                       children: [
                         StatusBadge(status: laporan.status, compact: true),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.secondary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            '${kategoriIcon(laporan.kategori)} ${kategoriLabel(laporan.kategori)}',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.secondary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
                         const Spacer(),
                         Icon(Icons.location_on_outlined, size: 16, color: theme.colorScheme.onSurface.withValues(alpha: 0.4)),
                         const SizedBox(width: 2),

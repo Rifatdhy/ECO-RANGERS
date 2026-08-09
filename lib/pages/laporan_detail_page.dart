@@ -1,6 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:eco_rangers/models/kategori.dart';
 import 'package:eco_rangers/models/report_update.dart';
 import 'package:eco_rangers/pages/photo_viewer_page.dart';
+import 'package:eco_rangers/services/api_client.dart';
 import 'package:eco_rangers/services/auth_service.dart';
 import 'package:eco_rangers/ui/widgets/status_badge.dart';
 import 'package:flutter/material.dart';
@@ -24,11 +26,23 @@ class LaporanDetailPage extends StatefulWidget {
 class _LaporanDetailPageState extends State<LaporanDetailPage> {
   late Laporan _currentLaporan;
   final _authService = locator<AuthService>();
+  final _apiClient = locator<ApiClient>();
 
   @override
   void initState() {
     super.initState();
     _currentLaporan = widget.laporan;
+    _refreshDetail();
+  }
+
+  Future<void> _refreshDetail() async {
+    if (!mounted) return;
+    try {
+      final fresh = await _apiClient.getReport(_currentLaporan.id);
+      if (mounted) setState(() => _currentLaporan = fresh);
+    } catch (_) {
+      // Jika fetch detail gagal, gunakan data list yang sudah ada.
+    }
   }
 
   void _navigateToUpdatePage() async {
@@ -133,7 +147,27 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            StatusBadge(status: _currentLaporan.status),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                StatusBadge(status: _currentLaporan.status),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    '${kategoriIcon(_currentLaporan.kategori)} ${kategoriLabel(_currentLaporan.kategori)}',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.secondary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 16),
             _buildInfoRow(Icons.person_outline, 'Pelapor', '${_currentLaporan.user?.name ?? _currentLaporan.user?.username ?? 'N/A'} (${_currentLaporan.user?.email ?? 'N/A'})', textTheme),
             const Divider(height: 24),

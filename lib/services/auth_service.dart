@@ -11,6 +11,9 @@ class AuthService {
   AuthService._();
   static final AuthService instance = AuthService._();
 
+  // Client HTTP di-reuse untuk semua request auth (pooling koneksi).
+  final http.Client _client = http.Client();
+
   static const _tokenKey = 'token';
   static const _userKey = 'current_user';
   // Di web tidak ada keystore OS; gunakan SharedPreferences (sama saja
@@ -27,7 +30,7 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    final res = await http.post(
+    final res = await _client.post(
       api('/api/register'),
       headers: {
         'Content-Type': 'application/json',
@@ -42,8 +45,7 @@ class AuthService {
     final data = _decode(res.body);
     if (res.statusCode >= 200 && res.statusCode < 300) {
       await _writeToken(data['token'] ?? '');
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_userKey, jsonEncode(data['user']));
+      await _writeUser(data['user']);
       _currentUser = User.fromJson(data['user']);
       return data;
     }
@@ -54,7 +56,7 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    final res = await http.post(
+    final res = await _client.post(
       api('/api/login'),
       headers: {
         'Content-Type': 'application/json',
@@ -65,8 +67,7 @@ class AuthService {
     final data = _decode(res.body);
     if (res.statusCode >= 200 && res.statusCode < 300) {
       await _writeToken(data['token'] ?? '');
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_userKey, jsonEncode(data['user']));
+      await _writeUser(data['user']);
       _currentUser = User.fromJson(data['user']);
       return _currentUser!;
     }
@@ -80,13 +81,20 @@ class AuthService {
     if (_currentUser != null) return _currentUser;
 
     try {
-      final res = await http.get(
+      final res = await _client.get(
         api('/api/me'),
         headers: {'Accept': 'application/json', 'Authorization': 'Bearer $t'},
       );
       if (res.statusCode == 200) {
         _currentUser = User.fromJson(_decode(res.body));
         return _currentUser;
+      }
+      if (res.statusCode == 401) {
+        // Token basi — bersihkan agar tidak berulang hit `/api/me` 401.
+        await _deleteToken();
+        await _deleteUser();
+        _currentUser = null;
+        return null;
       }
     } catch (e) {
       return null;
@@ -98,7 +106,7 @@ class AuthService {
     final t = await getToken();
     if (t != null) {
       try {
-        await http.post(
+        await _client.post(
           api('/api/logout'),
           headers: {'Accept': 'application/json', 'Authorization': 'Bearer $t'},
         );
@@ -106,8 +114,7 @@ class AuthService {
         // Abaikan error
       }
     }
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_userKey);
+    await _deleteUser();
     await _deleteToken();
     _currentUser = null;
   }
@@ -122,6 +129,33 @@ class AuthService {
     }
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_tokenKey);
+  }
+
+  Future<void> _writeUser(dynamic userJson) async {
+    final value = jsonEncode(userJson);
+    if (_useSecureStorage) {
+      try {
+        await _storage.write(key: _userKey, value: value);
+      } catch (_) {
+        // abaikan
+      }
+      return;
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_userKey, value);
+  }
+
+  Future<void> _deleteUser() async {
+    if (_useSecureStorage) {
+      try {
+        await _storage.delete(key: _userKey);
+      } catch (_) {
+        // abaikan
+      }
+      return;
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_userKey);
   }
 
   Future<void> _writeToken(String value) async {

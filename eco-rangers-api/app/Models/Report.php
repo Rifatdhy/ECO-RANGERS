@@ -12,7 +12,7 @@ class Report extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'judul', 'deskripsi', 'lokasi_text', 'lat', 'lng', 'foto_path', 'status'
+        'user_id', 'judul', 'kategori', 'deskripsi', 'lokasi_text', 'lat', 'lng', 'foto_path', 'status'
     ];
 
     protected $appends = ['foto_url'];

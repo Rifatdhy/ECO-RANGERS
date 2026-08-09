@@ -40,3 +40,6 @@ Thumbs.db
 *.png
 *.jpg
 *.jpeg
+
+# ---- Memory/agent lokal ----
+.agents/
