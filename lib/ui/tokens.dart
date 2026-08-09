@@ -12,6 +12,16 @@ abstract final class AppColors {
   static const warning = Color(0xFFFF9500); // iOS system orange
   static const error = Color(0xFFFF3B30); // iOS system red
   static const onPrimary = Color(0xFFFFFFFF);
+
+  /// Gradient hijau brand, dipakai hero header (auth, home, profil, dashboard).
+  static const brandGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF2E7D32), Color(0xFF43A047)],
+  );
+
+  /// Warna placeholder foto/avatar kosong.
+  static const photoPlaceholder = Color(0xFFE9E9EB);
 }
 
 abstract final class AppSpacing {
