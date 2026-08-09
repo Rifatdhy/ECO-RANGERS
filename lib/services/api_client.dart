@@ -139,6 +139,45 @@ class ApiClient {
     return Laporan.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
 
+  Future<Map<String, dynamic>> toggleVote(int id) async {
+    final t = await AuthService.instance.getToken();
+    final res = await _guard(
+      _client.post(
+        api('/api/reports/$id/vote'),
+        headers: {
+          'Accept': 'application/json',
+          if (t != null) 'Authorization': 'Bearer $t',
+        },
+      ),
+      'POST vote',
+    );
+    if (res.statusCode != 200) {
+      _checkAuth(res);
+      throw Exception('Vote gagal: ${res.statusCode} ${res.body}');
+    }
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  Future<void> confirmReport(int id, String konfirmasi) async {
+    final t = await AuthService.instance.getToken();
+    final res = await _guard(
+      _client.post(
+        api('/api/reports/$id/confirm'),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          if (t != null) 'Authorization': 'Bearer $t',
+        },
+        body: jsonEncode({'konfirmasi': konfirmasi}),
+      ),
+      'POST confirm',
+    );
+    if (res.statusCode != 200) {
+      _checkAuth(res);
+      throw Exception('Konfirmasi gagal: ${res.statusCode} ${res.body}');
+    }
+  }
+
   Future<Map<String, dynamic>> updateReportStatus({
     required int id,
     required String status,

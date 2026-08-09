@@ -12,7 +12,7 @@ class Report extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'judul', 'kategori', 'deskripsi', 'lokasi_text', 'lat', 'lng', 'foto_path', 'status'
+        'user_id', 'judul', 'kategori', 'deskripsi', 'lokasi_text', 'lat', 'lng', 'foto_path', 'status', 'konfirmasi_user'
     ];
 
     protected $appends = ['foto_url'];
@@ -38,6 +38,24 @@ class Report extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function votes()
+    {
+        return $this->hasMany(\App\Models\Vote::class);
+    }
+
+    public function voteCount(): int
+    {
+        return $this->votes()->count();
+    }
+
+    public function isVotedBy(?int $userId): bool
+    {
+        if (! $userId) {
+            return false;
+        }
+        return $this->votes()->where('user_id', $userId)->exists();
     }
 
     protected static function booted()

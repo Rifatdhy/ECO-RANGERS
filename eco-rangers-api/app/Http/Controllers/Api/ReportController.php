@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Report;
 use App\Models\ReportUpdate;
+use App\Models\Vote;
 use Illuminate\Support\Facades\DB;
 
 class ReportController extends Controller
@@ -16,9 +17,11 @@ class ReportController extends Controller
         $user = $request->user();
         $query = Report::select([
                 'id', 'user_id', 'judul', 'kategori', 'deskripsi', 'lokasi_text',
-                'lat', 'lng', 'foto_path', 'status', 'created_at'
+                'lat', 'lng', 'foto_path', 'status', 'konfirmasi_user', 'created_at'
             ])
             ->with('user:id,name,username')
+            ->withCount('votes')
+            ->with(['votes' => fn ($v) => $v->where('user_id', $user->id)->select('id', 'report_id')])
             ->orderByDesc('id');
 
         // Fitur filter berdasarkan status
@@ -59,10 +62,13 @@ class ReportController extends Controller
             ->get();
 
         // Normalisasi status ke lowercase + foto_url konsisten (tanpa nested updates).
-        $reports->transform(function ($report) {
+        $reports->transform(function ($report) use ($user) {
             $report->status = strtolower($report->status);
             $report->kategori = strtolower($report->kategori);
+            $report->vote_count = (int) $report->votes_count;
+            $report->voted_by_me = $report->votes->isNotEmpty();
             $report->foto_url = $report->foto_path ? asset('storage/' . $report->foto_path) : null;
+            $report->makeHidden(['votes', 'votes_count']);
             return $report;
         });
 
@@ -80,6 +86,8 @@ class ReportController extends Controller
 
         $report->load(['user', 'updates']);
         $report->status = strtolower($report->status);
+        $report->vote_count = $report->votes()->count();
+        $report->voted_by_me = $report->votes()->where('user_id', $user->id)->exists();
         return response()->json($report);
     }
 
@@ -169,6 +177,118 @@ class ReportController extends Controller
             'avg_response_hours' => $avgHours !== null ? round((float) $avgHours, 1) : null,
             'leaderboard' => $leaderboard,
         ])->header('Cache-Control', 'no-store, no-cache, must-revalidate');
+    }
+
+    public function confirmResolution(Request $request, Report $report)
+    {
+        $user = $request->user();
+
+        // Hanya pelapor yang bisa mengonfirmasi penyelesaian.
+        if ($report->user_id !== $user->id) {
+            abort(403, 'Hanya pelapor yang dapat mengonfirmasi');
+        }
+
+        $validated = $request->validate([
+            'konfirmasi' => ['required', 'in:sesuai,tidak_tuntas'],
+        ]);
+
+        $report->konfirmasi_user = $validated['konfirmasi'];
+        $report->save();
+
+        return response()->json([
+            'message' => 'Konfirmasi tersimpan',
+            'konfirmasi_user' => $report->konfirmasi_user,
+        ])->header('Cache-Control', 'no-store');
+    }
+
+    public function toggleVote(Request $request, Report $report)
+    {
+        $user = $request->user();
+
+        // Hanya user biasa yang men-tavigate; admin boleh juga (opsional).
+        $existing = Vote::where('user_id', $user->id)->where('report_id', $report->id)->first();
+
+        if ($existing) {
+            $existing->delete();
+            $voted = false;
+        } else {
+            Vote::create(['user_id' => $user->id, 'report_id' => $report->id]);
+            $voted = true;
+        }
+
+        return response()->json([
+            'voted' => $voted,
+            'votes' => $report->votes()->count(),
+        ])->header('Cache-Control', 'no-store');
+    }
+
+    public function exportCsv(Request $request)
+    {
+        // Route sudah dijamin admin via middleware; dan izinkan token via
+        // query (?token=) agar bisa dibuka dari url_launcher (unduhan browser).
+        $user = $request->user();
+        $isAdmin = $user && $user->tokenCan('role:admin');
+        if (! $isAdmin && $request->filled('token')) {
+            // Menerima plainTextToken penuh ("id|hash") atau hash saja.
+            $tok = \Laravel\Sanctum\PersonalAccessToken::findToken($request->input('token'))
+                ?? \Laravel\Sanctum\PersonalAccessToken::findToken(explode('|', $request->input('token'), 2)[1] ?? '');
+            $isAdmin = $tok
+                && $tok->tokenable
+                && collect($tok->abilities ?? [])->contains('role:admin');
+        }
+        if (! $isAdmin) {
+            abort(403);
+        }
+
+        $query = Report::with('user:id,name,username')
+            ->orderByDesc('id');
+
+        if ($request->filled('status')) {
+            $query->where('status', strtolower($request->input('status')));
+        }
+        if ($request->filled('kategori')) {
+            $query->where('kategori', strtolower($request->input('kategori')));
+        }
+        if ($request->filled('q')) {
+            $q = trim($request->input('q'));
+            $query->where(fn ($sub) => $sub
+                ->where('judul', 'like', "%{$q}%")
+                ->orWhere('deskripsi', 'like', "%{$q}%")
+                ->orWhere('lokasi_text', 'like', "%{$q}%"));
+        }
+
+        $cols = [
+            'id' => 'ID',
+            'judul' => 'Judul',
+            'kategori' => 'Kategori',
+            'status' => 'Status',
+            'lokasi_text' => 'Lokasi',
+            'lat' => 'Lat',
+            'lng' => 'Lng',
+            'created_at' => 'Dibuat',
+            'user.name' => 'Pelapor',
+        ];
+
+        $filename = 'laporan-' . now()->format('Ymd-His') . '.csv';
+
+        return response()->streamDownload(function () use ($query, $cols) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, array_values($cols));
+            $query->chunk(500, function ($reports) use ($out, $cols) {
+                foreach ($reports as $r) {
+                    $row = [];
+                    foreach ($cols as $key => $_) {
+                        $val = data_get($r, $key);
+                        if ($key === 'created_at' && $val) {
+                            $val = \Illuminate\Support\Carbon::parse($val)->format('Y-m-d H:i');
+                        }
+                        $row[] = is_null($val) ? '' : $val;
+                    }
+                    fputcsv($out, $row);
+                }
+            });
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     public function store(Request $request)

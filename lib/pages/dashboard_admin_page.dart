@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../config.dart';
 import '../locator.dart';
 import '../models/laporan.dart';
 import '../models/user.dart';
@@ -78,6 +80,25 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
   void dispose() {
     _debounce?.cancel();
     super.dispose();
+  }
+
+  Future<void> _exportCsv() async {
+    final t = await locator<AuthService>().getToken();
+    if (t == null) return;
+    final query = <String, String>{
+      'token': t,
+      if (_selectedFilter.toLowerCase() != 'semua') 'status': _selectedFilter.toLowerCase(),
+      if (_searchQuery.isNotEmpty) 'q': _searchQuery,
+    };
+    final uri = Uri.parse('$baseUrl/api/admin/export/reports')
+        .replace(queryParameters: query);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tidak dapat mengekspor laporan')),
+      );
+    }
   }
 
   Future<void> _logout() async {
@@ -172,6 +193,11 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
               surfaceTintColor: theme.colorScheme.surface,
               title: const Text('Dashboard Admin'),
               actions: [
+                IconButton(
+                  icon: const Icon(Icons.download_rounded),
+                  tooltip: 'Ekspor CSV',
+                  onPressed: _exportCsv,
+                ),
                 IconButton(
                   icon: const Icon(Icons.logout_rounded),
                   tooltip: 'Keluar',

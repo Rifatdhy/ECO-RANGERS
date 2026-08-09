@@ -14,6 +14,9 @@ class Laporan {
   final String? fotoPath;
   final String? fotoUrl;
   String status; // Status terakhir, bisa diupdate
+  String? konfirmasiUser; // 'sesuai' / 'tidak_tuntas' / null
+  int voteCount; // Jumlah dukungan, bisa di-update saat toggle
+  bool votedByMe;
   final DateTime createdAt;
   final User? user;
   final List<ReportUpdate> updates;
@@ -29,6 +32,9 @@ class Laporan {
     this.fotoPath,
     this.fotoUrl,
     required this.status,
+    this.konfirmasiUser,
+    this.voteCount = 0,
+    this.votedByMe = false,
     required this.createdAt,
     this.updates = const [], // Default ke list kosong
     this.user, // Tambahkan di konstruktor
@@ -67,6 +73,9 @@ class Laporan {
       fotoPath: fotoPath,
       fotoUrl: fotoPath != null ? imageUrlFrom({'foto_path': fotoPath}) : null,
       status: json['status'] as String? ?? 'pending',
+      konfirmasiUser: json['konfirmasi_user'] as String?,
+      voteCount: (json['vote_count'] as num?)?.toInt() ?? 0,
+      votedByMe: json['voted_by_me'] == true,
       createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ?? DateTime.now(),
       updates: updatesList,
       user: user,

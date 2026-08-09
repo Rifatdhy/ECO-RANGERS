@@ -107,6 +107,15 @@ class ReportCard extends StatelessWidget {
                           ),
                         ),
                         const Spacer(),
+                        if (laporan.voteCount > 0) ...[
+                          Icon(Icons.arrow_upward_rounded, size: 14, color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
+                          const SizedBox(width: 2),
+                          Text(
+                            '${laporan.voteCount}',
+                            style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
                         Icon(Icons.location_on_outlined, size: 16, color: theme.colorScheme.onSurface.withValues(alpha: 0.4)),
                         const SizedBox(width: 2),
                         Flexible(

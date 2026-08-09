@@ -97,6 +97,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reports/stats', [ReportController::class, 'stats']);
     Route::get('/reports/{report}', [ReportController::class, 'show']);
     Route::post('/reports', [ReportController::class, 'store']);
+    Route::post('/reports/{report}/vote', [ReportController::class, 'toggleVote']);
+    Route::post('/reports/{report}/confirm', [ReportController::class, 'confirmResolution']);
 });
 
 // Endpoint KHUSUS ADMIN
@@ -109,3 +111,7 @@ Route::middleware(['auth:sanctum', 'ability:role:admin'])->group(function () {
     // Untuk membersihkan semua laporan
     Route::post('/admin/clear-all-reports', [ReportController::class, 'clearAll']);
 });
+
+// Export CSV: TANPA middleware auth (register lewat Bearer ATAU ?token=),
+// karena membuka via browser/url_launcher tidak bisa membawa header.
+Route::get('/admin/export/reports', [ReportController::class, 'exportCsv']);

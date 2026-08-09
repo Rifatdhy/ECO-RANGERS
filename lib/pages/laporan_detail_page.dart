@@ -25,6 +25,7 @@ class LaporanDetailPage extends StatefulWidget {
 
 class _LaporanDetailPageState extends State<LaporanDetailPage> {
   late Laporan _currentLaporan;
+  bool _voting = false;
   final _authService = locator<AuthService>();
   final _apiClient = locator<ApiClient>();
 
@@ -42,6 +43,28 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
       if (mounted) setState(() => _currentLaporan = fresh);
     } catch (_) {
       // Jika fetch detail gagal, gunakan data list yang sudah ada.
+    }
+  }
+
+  Future<void> _toggleVote() async {
+    if (_voting) return;
+    setState(() => _voting = true);
+    try {
+      final result = await _apiClient.toggleVote(_currentLaporan.id);
+      if (mounted) {
+        setState(() {
+          _currentLaporan.voteCount = (result['votes'] as num?)?.toInt() ?? _currentLaporan.voteCount;
+          _currentLaporan.votedByMe = result['voted'] == true;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Gagal mengubah vote')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _voting = false);
     }
   }
 
@@ -76,6 +99,23 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Tidak dapat membuka Google Maps')),
       );
+    }
+  }
+
+  Future<void> _confirm(String konfirmasi) async {
+    try {
+      await _apiClient.confirmReport(_currentLaporan.id, konfirmasi);
+      if (!mounted) return;
+      setState(() => _currentLaporan.konfirmasiUser = konfirmasi);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Terima kasih atas konfirmasimu')),
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Gagal menyimpan konfirmasi')),
+        );
+      }
     }
   }
 
@@ -126,6 +166,8 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
             const SizedBox(height: 16),
             _buildInfoCard(textTheme),
             _buildDescriptionCard(textTheme),
+            if (_isReporter && _currentLaporan.status.toLowerCase() == 'selesai')
+              _buildConfirmationCard(textTheme),
             _buildHistorySection(textTheme),
           ],
         ),
@@ -137,6 +179,70 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
               icon: const Icon(Icons.add),
             )
           : null,
+    );
+  }
+
+  bool get _isReporter =>
+      !(_authService.currentUser?.isAdmin ?? false) &&
+      _currentLaporan.user?.id == _authService.currentUser?.id;
+
+  Widget _buildConfirmationCard(TextTheme textTheme) {
+    final done = _currentLaporan.konfirmasiUser;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Konfirmasi Penyelesaian', style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 6),
+            if (done != null)
+              Row(
+                children: [
+                  Icon(
+                    done == 'sesuai' ? Icons.check_circle_rounded : Icons.error_outline_rounded,
+                    color: done == 'sesuai' ? AppColors.success : AppColors.warning,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      done == 'sesuai'
+                          ? 'Kamu menandai laporan ini sudah tuntas.'
+                          : 'Kamu menandai penanganan belum tuntas.',
+                      style: textTheme.bodyMedium,
+                    ),
+                  ),
+                ],
+              )
+            else ...[
+              Text(
+                'Apakah penanganan laporan ini sudah sesuai?',
+                style: textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.tonalIcon(
+                      onPressed: () => _confirm('sesuai'),
+                      icon: const Icon(Icons.check_rounded, size: 18),
+                      label: const Text('Sudah sesuai'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _confirm('tidak_tuntas'),
+                      icon: const Icon(Icons.close_rounded, size: 18),
+                      label: const Text('Belum tuntas'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -165,6 +271,19 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
                           fontWeight: FontWeight.w700,
                         ),
                   ),
+                ),
+                ActionChip(
+                  avatar: Icon(
+                    _currentLaporan.votedByMe ? Icons.arrow_upward_rounded : Icons.arrow_upward_outlined,
+                    size: 18,
+                    color: _currentLaporan.votedByMe ? AppColors.primary : AppColors.textMuted,
+                  ),
+                  label: Text('${_currentLaporan.voteCount}'),
+                  tooltip: _currentLaporan.votedByMe ? 'Batal dukung' : 'Dukung isu ini',
+                  onPressed: _voting ? null : _toggleVote,
+                  backgroundColor: _currentLaporan.votedByMe
+                      ? AppColors.primary.withValues(alpha: 0.12)
+                      : Theme.of(context).colorScheme.surface,
                 ),
               ],
             ),
