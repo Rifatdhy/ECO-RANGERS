@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:eco_rangers/models/user.dart';
 import 'package:eco_rangers/ui/app_theme.dart';
+import 'package:eco_rangers/ui/tokens.dart';
 import 'package:flutter/material.dart';
 
 import '../locator.dart';
@@ -131,9 +132,9 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
             center: const Alignment(-0.85, -0.95),
             radius: 1.5,
             colors: [
-              AppTheme.accentColor.withValues(alpha: 0.18),
-              AppTheme.lightSurfaceAltColor,
-              AppTheme.lightBackgroundColor,
+              AppColors.accent.withValues(alpha: 0.18),
+              theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              theme.colorScheme.surface,
             ],
             stops: const [0.0, 0.55, 1.0],
           ),

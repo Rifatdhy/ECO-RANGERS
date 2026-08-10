@@ -209,13 +209,7 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
                     ? const SizedBox.shrink()
                     : Container(
                         padding: const EdgeInsets.fromLTRB(20, 72, 20, 20),
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
-                          ),
-                        ),
+                        decoration: const BoxDecoration(gradient: AppColors.brandGradient),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.end,
@@ -256,16 +250,44 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
                               Expanded(
                                 child: StatTile(
                                   label: 'Total laporan',
-                                  value: '${_stats['total'] ?? _reports.length}',
+                                  value: (_stats['total'] as num?) ?? _reports.length,
                                   icon: Icons.fact_check_outlined,
+                                  color: AppColors.primary,
+                                  animate: true,
                                 ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: StatTile(
                                   label: 'Menunggu',
-                                  value: '${_stats['pending'] ?? 0}',
+                                  value: (_stats['pending'] as num?) ?? 0,
                                   icon: Icons.hourglass_top_rounded,
+                                  color: AppColors.warning,
+                                  animate: true,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: StatTile(
+                                  label: 'Proses',
+                                  value: (_stats['diproses'] as num?) ?? 0,
+                                  icon: Icons.engineering_outlined,
+                                  color: AppColors.accent,
+                                  animate: true,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: StatTile(
+                                  label: 'Selesai',
+                                  value: (_stats['selesai'] as num?) ?? 0,
+                                  icon: Icons.check_circle_outline_rounded,
+                                  color: AppColors.success,
+                                  animate: true,
                                 ),
                               ),
                             ],

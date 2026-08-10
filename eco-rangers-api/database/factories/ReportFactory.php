@@ -17,7 +17,10 @@ class ReportFactory extends Factory
             'lokasi_text' => $this->faker->city(),
             'lat' => $this->faker->latitude(),
             'lng' => $this->faker->longitude(),
-            'foto_path' => $this->faker->imageUrl(640, 480, 'nature', true, 'eco-rangers'), // Memperbaiki: Menambahkan kembali foto_path
+            // ponytail: foto_path NULL — faker imageUrl mengembalikan URL absolut
+            // (via.placeholder.com) yang tak pernah tersimpan di storage, jadi
+            // memicu burst 404 di list. UI sudah punya fallback ikon.
+            'foto_path' => null,
             'status' => 'pending',
         ];
     }

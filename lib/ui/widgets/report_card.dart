@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../models/kategori.dart';
 import '../../models/laporan.dart';
 import '../../ui/tokens.dart';
+import 'animated_number.dart';
 import 'state_views.dart';
 import 'status_badge.dart';
 
@@ -140,53 +141,64 @@ class StatTile extends StatelessWidget {
     required this.value,
     required this.label,
     this.color,
+    this.animate = false,
   });
 
   final IconData icon;
-  final String value;
+  final num value;
   final String label;
   final Color? color;
+  final bool animate;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final accent = color ?? AppColors.primary;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            accent.withValues(alpha: 0.1),
+            accent.withValues(alpha: 0.02),
+          ],
+        ),
         borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: accent.withValues(alpha: 0.12)),
         boxShadow: AppShadows.card,
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.1),
+              color: accent.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
-            child: Icon(icon, color: accent),
+            child: Icon(icon, color: accent, size: 20),
           ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
+          const SizedBox(height: AppSpacing.sm),
+          animate
+              ? AnimatedNumber(
+                  value: value,
+                  style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+                )
+              : Text(
+                  value.round().toString(),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                  style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
                 ),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
         ],
       ),

@@ -415,62 +415,82 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
 
   Widget _buildHistoryTile(ReportUpdate update, bool isLast, TextTheme textTheme) {
     final info = statusInfo(update.status);
+    final lineColor = Theme.of(context).dividerColor.withValues(alpha: 0.5);
 
     return IntrinsicHeight(
-      child: Row(
-        children: [
-          Column(
-            children: [
-              Container(
-                width: 20, height: 20,
-                decoration: BoxDecoration(
-                  color: info.color,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Theme.of(context).colorScheme.surface, width: 3),
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: 1),
+        duration: const Duration(milliseconds: 450),
+        curve: Curves.easeOutCubic,
+        builder: (context, t, child) {
+          return Opacity(
+            opacity: t,
+            child: Transform.translate(
+              offset: Offset(0, 12 * (1 - t)),
+              child: child,
+            ),
+          );
+        },
+        child: Row(
+          children: [
+            Column(
+              children: [
+                Container(
+                  width: 20, height: 20,
+                  decoration: BoxDecoration(
+                    color: info.color,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Theme.of(context).colorScheme.surface, width: 3),
+                  ),
+                  child: Icon(
+                    info.icon,
+                    size: 12,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
-              if (!isLast) Expanded(child: Container(width: 2, color: Colors.grey[300])),
-            ],
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(bottom: isLast ? 0 : 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Status: ${update.status.toUpperCase()}', style: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold, color: info.color)),
-                  const SizedBox(height: 4),
-                  Text(DateFormat('dd MMMM yyyy, HH:mm').format(update.createdAt), style: textTheme.bodySmall),
-                  if (update.keterangan != null && update.keterangan!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Text('"${update.keterangan}"', style: textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic)),
-                    ),
-                  if (update.namaPetugas != null && update.namaPetugas!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Text('Petugas: ${update.namaPetugas}', style: textTheme.bodyMedium),
-                    ),
-                  if (update.fotoDokumentasiUrl != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12.0),
-                      child: GestureDetector(
-                        onTap: () => _openPhotoViewer(update.fotoDokumentasiUrl!),
-                        child: Hero(
-                          tag: update.fotoDokumentasiUrl!,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: CachedNetworkImage(imageUrl: update.fotoDokumentasiUrl!),
+                if (!isLast) Expanded(child: Container(width: 2, color: lineColor)),
+              ],
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(bottom: isLast ? 0 : 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Status: ${update.status.toUpperCase()}', style: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold, color: info.color)),
+                    const SizedBox(height: 4),
+                    Text(DateFormat('dd MMMM yyyy, HH:mm').format(update.createdAt), style: textTheme.bodySmall),
+                    if (update.keterangan != null && update.keterangan!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Text('"${update.keterangan}"', style: textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic)),
+                      ),
+                    if (update.namaPetugas != null && update.namaPetugas!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Text('Petugas: ${update.namaPetugas}', style: textTheme.bodyMedium),
+                      ),
+                    if (update.fotoDokumentasiUrl != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12.0),
+                        child: GestureDetector(
+                          onTap: () => _openPhotoViewer(update.fotoDokumentasiUrl!),
+                          child: Hero(
+                            tag: update.fotoDokumentasiUrl!,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: CachedNetworkImage(imageUrl: update.fotoDokumentasiUrl!),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

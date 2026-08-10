@@ -10,6 +10,7 @@ import '../services/notifikasi_service.dart';
 import '../ui/tokens.dart';
 import '../ui/widgets/report_card.dart';
 import '../ui/widgets/section_header.dart';
+import '../ui/widgets/animated_number.dart';
 import '../ui/widgets/state_views.dart';
 import 'laporan_detail_page.dart';
 import 'map_page.dart';
@@ -213,11 +214,11 @@ class HomePageState extends State<HomePage> {
           const SizedBox(height: AppSpacing.xl),
           Row(
             children: [
-              _heroStat(context, '$_totalLaporan', 'Laporan', Icons.assessment_outlined),
+              _heroStat(context, _totalLaporan, 'Laporan', Icons.assessment_outlined),
               const SizedBox(width: AppSpacing.sm),
-              _heroStat(context, '$_pending', 'Menunggu', Icons.hourglass_bottom_rounded),
+              _heroStat(context, _pending, 'Menunggu', Icons.hourglass_bottom_rounded),
               const SizedBox(width: AppSpacing.sm),
-              _heroStat(context, '$_selesai', 'Selesai', Icons.check_circle_outline_rounded),
+              _heroStat(context, _selesai, 'Selesai', Icons.check_circle_outline_rounded),
             ],
           ),
         ],
@@ -230,7 +231,7 @@ class HomePageState extends State<HomePage> {
     return parts.length > 1 ? parts.first : name;
   }
 
-  Widget _heroStat(BuildContext context, String value, String label, IconData icon) {
+  Widget _heroStat(BuildContext context, int value, String label, IconData icon) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.sm),
@@ -244,8 +245,8 @@ class HomePageState extends State<HomePage> {
           children: [
             Icon(icon, color: Colors.white, size: 18),
             const SizedBox(height: 6),
-            Text(
-              value,
+            AnimatedNumber(
+              value: value,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
