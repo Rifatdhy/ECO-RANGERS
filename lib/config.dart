@@ -8,10 +8,6 @@ late String baseUrl;
 
 // ensureBaseUrl sekarang hanya membaca dari dotenv
 Future<void> ensureBaseUrl() async {
-  // Hardcode untuk pengujian Playwright
-  baseUrl = 'http://127.0.0.1:8000';
-  return;
-  /*
   final envBaseUrl = dotenv.env['API_BASE_URL']?.trim();
 
   if (envBaseUrl != null && envBaseUrl.isNotEmpty) {
@@ -20,7 +16,6 @@ Future<void> ensureBaseUrl() async {
   }
 
   baseUrl = Uri.base.host.isNotEmpty ? 'http://${Uri.base.host}:8000' : 'http://localhost:8000';
-  */
 }
 
 Uri api(String path, [Map<String, dynamic>? query]) {
