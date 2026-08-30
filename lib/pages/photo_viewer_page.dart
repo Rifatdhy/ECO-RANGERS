@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 
@@ -19,10 +20,26 @@ class PhotoViewerPage extends StatelessWidget {
         ),
       ),
       body: PhotoView(
-        imageProvider: NetworkImage(imageUrl),
+        imageProvider: CachedNetworkImageProvider(imageUrl),
         minScale: PhotoViewComputedScale.contained,
         maxScale: PhotoViewComputedScale.covered * 2,
-        heroAttributes: PhotoViewHeroAttributes(tag: imageUrl),
+        heroAttributes: PhotoViewHeroAttributes(tag: 'photo-$imageUrl'),
+        loadingBuilder: (_, __) => const Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+        errorBuilder: (context, error, stackTrace) => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.broken_image_outlined, size: 56, color: Colors.white.withValues(alpha: 0.7)),
+              const SizedBox(height: 12),
+              Text(
+                'Foto gagal dimuat',
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.8)),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

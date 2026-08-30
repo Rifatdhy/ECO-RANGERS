@@ -16,6 +16,7 @@ class UpdateStatusPage extends StatefulWidget {
 }
 
 class _UpdateStatusPageState extends State<UpdateStatusPage> {
+  final _picker = ImagePicker();
   final _formKey = GlobalKey<FormState>();
   final _namaPetugasController = TextEditingController();
   final _keteranganController = TextEditingController();
@@ -31,9 +32,15 @@ class _UpdateStatusPageState extends State<UpdateStatusPage> {
     _selectedStatus = widget.laporan.status.toLowerCase();
   }
 
+  @override
+  void dispose() {
+    _namaPetugasController.dispose();
+    _keteranganController.dispose();
+    super.dispose();
+  }
+
   Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    final pickedFile = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
     if (mounted) {
       setState(() {
         _documentationImage = pickedFile;

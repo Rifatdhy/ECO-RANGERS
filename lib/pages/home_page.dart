@@ -39,43 +39,59 @@ class HomePageState extends State<HomePage> {
   String? _kategoriFilter;
   int _reqSeq = 0;
 
+  int _prevTotal = 0;
+  int _prevPending = 0;
+  int _prevSelesai = 0;
+
   @override
   void initState() {
     super.initState();
     _load();
   }
 
-  void refresh() => _load();
+  void refresh({bool silent = false}) => _load(silent: silent);
 
   String _initial(String? a, String? b) =>
       ((a != null && a.isNotEmpty) ? a : (b ?? 'R')).substring(0, 1).toUpperCase();
 
-  Future<void> _load() async {
+  Future<void> _load({bool silent = false}) async {
     final seq = ++_reqSeq;
     if (!mounted) return;
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+    // Silent: konten lama tetap tampil saat refresh, tanpa flash loading.
+    if (!silent || _laporanList.isEmpty) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+    }
+    // Data laporan adalah essential: gagal ambil = error state jujur,
+    // bukan statistik 0 yang menyesatkan. Sisanya best-effort.
+    List<Laporan> reports;
     try {
-      // Satu RTT: semua permintaan paralel, masing-masing fallback ke default.
+      reports = await _api.fetchReportsAsModel(limit: 20, kategori: _kategoriFilter);
+    } catch (e) {
+      if (seq == _reqSeq && mounted) setState(() => _error = e.toString());
+      return;
+    }
+    if (seq != _reqSeq || !mounted) return;
+    try {
       final results = await Future.wait<Object?>([
         locator<AuthService>().getMe().catchError((_) => null),
         _api.getStats().catchError((_) => <String, dynamic>{}),
         NotifikasiService.instance.fetchUnseen().catchError((_) => <Laporan>[]),
-        _api
-            .fetchReportsAsModel(limit: 20, kategori: _kategoriFilter)
-            .catchError((_) => <Laporan>[]),
       ]);
       if (seq != _reqSeq || !mounted) return;
       final stats = results[1] as Map<String, dynamic>;
       setState(() {
         _user = results[0] as User?;
-        _laporanList = results[3] as List<Laporan>;
+        _laporanList = reports;
         _unreadCount = (results[2] as List<Laporan>).length;
-        _totalLaporan = (stats['total'] as num?)?.toInt() ?? 0;
-        _pending = (stats['pending'] as num?)?.toInt() ?? 0;
-        _selesai = (stats['selesai'] as num?)?.toInt() ?? 0;
+        _prevTotal = _totalLaporan;
+        _prevPending = _pending;
+        _prevSelesai = _selesai;
+        _totalLaporan = (stats['total'] as num?)?.toInt() ?? _totalLaporan;
+        _pending = (stats['pending'] as num?)?.toInt() ?? _pending;
+        _selesai = (stats['selesai'] as num?)?.toInt() ?? _selesai;
         _leaderboard = (stats['leaderboard'] as List? ?? [])
             .map((e) => MapEntry(
                   (e as Map)['name']?.toString() ?? 'Unknown',
@@ -125,7 +141,7 @@ class HomePageState extends State<HomePage> {
               else if (_error != null)
                 SliverFillRemaining(
                   hasScrollBody: false,
-                  child: ErrorRetry(message: _error!, onRetry: _load),
+                  child: ErrorRetry(message: _error ?? 'Terjadi kesalahan', onRetry: _load),
                 )
               else
                 SliverToBoxAdapter(child: _buildContent()),
@@ -214,11 +230,11 @@ class HomePageState extends State<HomePage> {
           const SizedBox(height: AppSpacing.xl),
           Row(
             children: [
-              _heroStat(context, _totalLaporan, 'Laporan', Icons.assessment_outlined),
+              _heroStat(context, _totalLaporan, _prevTotal, 'Laporan', Icons.assessment_outlined),
               const SizedBox(width: AppSpacing.sm),
-              _heroStat(context, _pending, 'Menunggu', Icons.hourglass_bottom_rounded),
+              _heroStat(context, _pending, _prevPending, 'Menunggu', Icons.hourglass_bottom_rounded),
               const SizedBox(width: AppSpacing.sm),
-              _heroStat(context, _selesai, 'Selesai', Icons.check_circle_outline_rounded),
+              _heroStat(context, _selesai, _prevSelesai, 'Selesai', Icons.check_circle_outline_rounded),
             ],
           ),
         ],
@@ -231,7 +247,7 @@ class HomePageState extends State<HomePage> {
     return parts.length > 1 ? parts.first : name;
   }
 
-  Widget _heroStat(BuildContext context, int value, String label, IconData icon) {
+  Widget _heroStat(BuildContext context, int value, int prev, String label, IconData icon) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.sm),
@@ -247,6 +263,7 @@ class HomePageState extends State<HomePage> {
             const SizedBox(height: 6),
             AnimatedNumber(
               value: value,
+              from: prev,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
@@ -300,12 +317,27 @@ class HomePageState extends State<HomePage> {
           _buildCategoryFilter(),
           const SizedBox(height: AppSpacing.sm),
           if (_laporanList.isEmpty)
-            const EmptyState(
-              icon: Icons.forest_outlined,
-              title: 'Belum ada laporan',
-              subtitle: 'Jadilah yang pertama melaporkan kondisi lingkungan.',
-              compact: true,
-            )
+            _kategoriFilter != null
+                ? EmptyState(
+                    icon: Icons.filter_alt_off_outlined,
+                    title: 'Tidak ada laporan kategori ini',
+                    subtitle: 'Coba pilih kategori lain atau tampilkan semua laporan.',
+                    compact: true,
+                    action: FilledButton.tonalIcon(
+                      onPressed: () {
+                        setState(() => _kategoriFilter = null);
+                        _load();
+                      },
+                      icon: const Icon(Icons.clear_all_rounded),
+                      label: const Text('Tampilkan semua'),
+                    ),
+                  )
+                : const EmptyState(
+                    icon: Icons.forest_outlined,
+                    title: 'Belum ada laporan',
+                    subtitle: 'Jadilah yang pertama melaporkan kondisi lingkungan.',
+                    compact: true,
+                  )
           else
             ...[
               for (final l in _laporanList.take(4)) ...[
@@ -412,26 +444,30 @@ class HomePageState extends State<HomePage> {
 
   Widget _quickAction(String label, IconData icon, Color color, VoidCallback? onTap) {
     return Expanded(
-      child: Material(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        child: InkWell(
-          onTap: onTap,
+      child: Semantics(
+        button: true,
+        label: label,
+        child: Material(
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          child: Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: AppColors.text.withValues(alpha: 0.06)),
-              boxShadow: AppShadows.card,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(icon, color: color, size: 28),
-                const SizedBox(height: AppSpacing.sm),
-                Text(label, style: Theme.of(context).textTheme.labelLarge),
-              ],
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            child: Container(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                border: Border.all(color: AppColors.text.withValues(alpha: 0.06)),
+                boxShadow: AppShadows.card,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(icon, color: color, size: 28),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(label, style: Theme.of(context).textTheme.labelLarge),
+                ],
+              ),
             ),
           ),
         ),
@@ -443,6 +479,6 @@ class HomePageState extends State<HomePage> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => LaporanDetailPage(laporan: l)),
-    ).then((_) => _load());
+    ).then((_) { if (mounted) _load(); });
   }
 }

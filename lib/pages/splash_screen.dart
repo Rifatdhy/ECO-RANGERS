@@ -4,6 +4,7 @@ import 'dart:async';
 import 'auth_page.dart';
 import 'dashboard_admin_page.dart';
 import 'main_shell.dart';
+import '../models/user.dart';
 import '../services/auth_service.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -18,6 +19,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
   Timer? _timer;
+  bool _navigated = false;
+  Future<User?>? _authFuture;
 
   @override
   void initState() {
@@ -43,6 +46,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     _controller.forward();
 
+    _authFuture = AuthService.instance.getMe().catchError((_) => null);
+
     _timer = Timer(
       const Duration(seconds: 3),
       () => _navigate(),
@@ -50,10 +55,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   Future<void> _navigate() async {
-    if (!mounted) return;
+    if (!mounted || _navigated) return;
+    _navigated = true;
     Widget page = const AuthPage();
 
-    final user = await AuthService.instance.getMe();
+    final user = await _authFuture!
+        .timeout(const Duration(seconds: 4), onTimeout: () => null);
     if (mounted) {
       if (user != null) {
         page = user.isAdmin ? const DashboardAdminPage() : const MainShell();

@@ -9,11 +9,15 @@
 | Fitur | Deskripsi |
 |-------|-----------|
 | 📸 **Laporan + Foto** | Laporkan masalah lingkungan lengkap dengan foto (auto-resize) dan lokasi GPS |
-| 📍 **Peta Laporan** | Lihat koordinat laporan & buka Google Maps |
-| 📊 **Status Real-time** | Pantau status laporan: Pending, Diproses, Selesai, Ditolak |
+| 🏷️ **Kategori Laporan** | Sampah, Pencemaran, Infrastruktur, Fauna, Flora, Lainnya — filter & statistik per kategori |
+| 🗺️ **Peta Interaktif** | Peta `flutter_map` dengan marker berwarna-status, klik marker → detail & Google Maps |
+| 📊 **Status Real-time** | Pantau status laporan: Pending, Diproses, Selesai, Ditolak + riwayat progres beranimasi |
+| 🔔 **Notifikasi In-App** | Badge & halaman notifikasi saat status laporan berubah |
+| 👍 **Upvote Isu** | Warga mendukung laporan; count + badge (protected dari IDOR & spam) |
 | 👤 **Autentikasi** | Register/Login (token aman via Sanctum), role khusus admin |
-| 🛡️ **Dashboard Admin** | Kelola semua laporan, ubah status + foto dokumentasi, filter & cari |
-| 📱 **Desain iOS** | Tema ala iOS: palet sistem, frosted glass, dark mode otomatis |
+| 🛡️ **Dashboard Admin** | 4 kartu statistik beranimasi, tren 7 hari, donut kategori, waktu tanggap, pencarian server-side, **export CSV** |
+| ✅ **Konfirmasi Penyelesaian** | Pelapor menobatkan "Sesuai" / "Belum Tuntas" saat laporan selesai |
+| 📱 **Desain Modern** | Tema ala iOS, frosted glass, dark mode otomatis, angka count-up (inspirasi 21st.dev) |
 | 🌗 **Dark Mode** | Ikut mode gelap/terang perangkat (`ThemeMode.system`) |
 
 ---
@@ -26,8 +30,10 @@
 - **flutter_secure_storage** — Token & sesi tersimpan aman (native keystore); di web memakai SharedPreferences
 - **http + Multipart** — REST API & upload
 - **cached_network_image** — Cache gambar laporan
+- **flutter_map + latlong2** — Peta interaktif dengan marker status
+- **fl_chart** — Grafik tren & donut kategori di dashboard admin
 - **DevicePreview** — Preview responsif saat debugging
-- **Inter (font lokal)** — Font variable di-bundle (tanpa fetch runtime, gaya mirip SF Pro)
+- **Inter (font lokal)** — Font weights 400–800 di-bundle (tanpa fetch runtime, mirip SF Pro)
 
 ### Backend (Laravel API)
 - **Laravel 12** — Framework PHP

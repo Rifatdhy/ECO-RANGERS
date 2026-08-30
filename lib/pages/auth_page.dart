@@ -439,15 +439,16 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
   }
 
   Widget _buildAuthCard(BuildContext context, {required bool isWide}) {
-    final textTheme = Theme.of(context).textTheme;
+    final theme = Theme.of(context);
+    final textTheme = theme.textTheme;
 
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(isWide ? 24 : 18),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.72),
+        color: theme.colorScheme.surface.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.6)),
+        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -462,7 +463,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
           const SizedBox(height: 6),
           Text(
             'Kelola atau kirim laporan dalam beberapa langkah.',
-            style: textTheme.bodyMedium?.copyWith(color: Colors.black54),
+            style: textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 20),
           Container(
@@ -487,7 +488,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
                 ],
               ),
               labelColor: AppTheme.primaryColor,
-              unselectedLabelColor: Colors.black54,
+              unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
               labelStyle: const TextStyle(fontWeight: FontWeight.w700),
               tabs: const [
                 Tab(text: 'Masuk'),
@@ -522,6 +523,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
               hint: 'nama@contoh.com',
             ),
             keyboardType: TextInputType.emailAddress,
+            maxLength: 254,
             validator: (v) => (v == null || !v.contains('@')) ? 'Email tidak valid' : null,
           ),
           const SizedBox(height: 14),
@@ -533,6 +535,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
               hint: 'Masukkan password Anda',
             ),
             obscureText: true,
+            maxLength: 72,
             validator: (v) => (v == null || v.isEmpty) ? 'Password wajib diisi' : null,
           ),
           const SizedBox(height: 12),
@@ -540,7 +543,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
             alignment: Alignment.centerRight,
             child: Text(
               'Gunakan akun yang sudah terverifikasi.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black45),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
           ),
           const SizedBox(height: 20),
@@ -580,6 +583,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
               icon: Icons.person_outline,
               hint: 'Nama tampilan Anda',
             ),
+            maxLength: 100,
             validator: (v) => (v == null || v.trim().length < 3) ? 'Minimal 3 karakter' : null,
           ),
           const SizedBox(height: 14),
@@ -591,6 +595,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
               hint: 'nama@contoh.com',
             ),
             keyboardType: TextInputType.emailAddress,
+            maxLength: 254,
             validator: (v) => (v == null || !v.contains('@')) ? 'Email tidak valid' : null,
           ),
           const SizedBox(height: 14),
@@ -607,7 +612,7 @@ class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin
           const SizedBox(height: 12),
           Text(
             'Akun baru langsung masuk ke alur laporan setelah registrasi.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black45),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 20),
           FilledButton(

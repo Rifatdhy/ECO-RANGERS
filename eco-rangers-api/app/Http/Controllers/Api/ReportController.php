@@ -66,13 +66,12 @@ class ReportController extends Controller
             ->limit(min(max($request->integer('limit', 200), 1), 500))
             ->get();
 
-        // Normalisasi status ke lowercase + foto_url konsisten (tanpa nested updates).
+        // Normalisasi status ke lowercase + agregasi vote (foto_url dari accessor model).
         $reports->transform(function ($report) use ($user) {
             $report->status = strtolower($report->status);
             $report->kategori = strtolower($report->kategori);
             $report->vote_count = (int) $report->votes_count;
             $report->voted_by_me = $report->votes->isNotEmpty();
-            $report->foto_url = $report->foto_path ? asset('storage/' . $report->foto_path) : null;
             $report->makeHidden(['votes', 'votes_count']);
             return $report;
         });
@@ -89,10 +88,12 @@ class ReportController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $report->load(['user', 'updates']);
+        $report->loadCount(['votes' => fn ($v) => $v->select('id')]);
+        $report->load(['user', 'updates', 'votes' => fn ($v) => $v->where('user_id', $user->id)->select('id', 'report_id')]);
         $report->status = strtolower($report->status);
-        $report->vote_count = $report->votes()->count();
-        $report->voted_by_me = $report->votes()->where('user_id', $user->id)->exists();
+        $report->vote_count = (int) $report->votes_count;
+        $report->voted_by_me = $report->votes->isNotEmpty();
+        $report->makeHidden(['votes', 'votes_count']);
         return response()->json($report);
     }
 
@@ -105,10 +106,16 @@ class ReportController extends Controller
             $query->where('user_id', $user->id);
         }
 
+        // Total + per-status dalam satu query (conditional aggregation).
         $counts = (clone $query)
-            ->selectRaw('status, COUNT(*) as total')
-            ->groupBy('status')
-            ->pluck('total', 'status');
+            ->selectRaw(
+                'COUNT(*) as total,
+                SUM(CASE WHEN status = \'pending\' THEN 1 ELSE 0 END) as pending,
+                SUM(CASE WHEN status = \'diproses\' THEN 1 ELSE 0 END) as diproses,
+                SUM(CASE WHEN status = \'selesai\' THEN 1 ELSE 0 END) as selesai,
+                SUM(CASE WHEN status = \'ditolak\' THEN 1 ELSE 0 END) as ditolak'
+            )
+            ->first();
 
         // Distribusi per kategori (untuk filter & insight).
         $kategoriCounts = (clone $query)
@@ -147,20 +154,27 @@ class ReportController extends Controller
             $trend[] = ['date' => $date, 'total' => (int) ($daily[$date] ?? 0)];
         }
 
-        // Rata-rata waktu tanggap (jam): selisih created_at → update pertama.
-        // ponytail: varian SQLite (julianday); untuk MySQL pakai TIMESTAMPDIFF(HOUR, ...)
-        // dan pertimbangkan agregasi engine bila sudah 100k+ baris.
+        // Rata-rata waktu tanggap (jam): selisih created_at → update pertama,
+        // via join subquery teragregasi (satu pass, bukan per-baris).
+        // ponytail: varian SQLite (julianday); untuk MySQL pakai TIMESTAMPDIFF(HOUR, ...).
         $avgHours = (clone $query)
-            ->whereHas('updates')
-            ->selectRaw('AVG(julianday((SELECT MIN(created_at) FROM report_updates u WHERE u.report_id = reports.id)) - julianday(reports.created_at)) * 24 as avg_h')
+            ->joinSub(
+                ReportUpdate::selectRaw('report_id, MIN(created_at) as first_at')
+                    ->groupBy('report_id'),
+                'first_updates',
+                'first_updates.report_id',
+                '=',
+                'reports.id'
+            )
+            ->selectRaw('AVG(julianday(first_updates.first_at) - julianday(reports.created_at)) * 24 as avg_h')
             ->first()?->avg_h;
 
         return response()->json([
-            'total' => (clone $query)->count(),
-            'pending' => (int) ($counts['pending'] ?? 0),
-            'diproses' => (int) ($counts['diproses'] ?? 0),
-            'selesai' => (int) ($counts['selesai'] ?? 0),
-            'ditolak' => (int) ($counts['ditolak'] ?? 0),
+            'total' => (int) ($counts->total ?? 0),
+            'pending' => (int) ($counts->pending ?? 0),
+            'diproses' => (int) ($counts->diproses ?? 0),
+            'selesai' => (int) ($counts->selesai ?? 0),
+            'ditolak' => (int) ($counts->ditolak ?? 0),
             'kategori' => [
                 'sampah' => (int) ($kategoriCounts['sampah'] ?? 0),
                 'pencemaran' => (int) ($kategoriCounts['pencemaran'] ?? 0),
@@ -211,56 +225,66 @@ class ReportController extends Controller
             abort(403, 'Tidak dapat memberikan vote');
         }
 
-        // Toggle atomik (exists -> delete/create) tanpa find-then-create.
-        $exists = Vote::where('user_id', $user->id)->where('report_id', $report->id)->exists();
-        if ($exists) {
-            Vote::where('user_id', $user->id)->where('report_id', $report->id)->delete();
-        } else {
+        // Toggle atomik dalam transaksi: unique(user_id, report_id) menjamin
+        // satu baris per pasangan; delete+create tidak mungkin dobel.
+        $voted = DB::transaction(function () use ($user, $report) {
+            $deleted = Vote::where('user_id', $user->id)->where('report_id', $report->id)->delete();
+            if ($deleted) {
+                return false;
+            }
             Vote::create(['user_id' => $user->id, 'report_id' => $report->id]);
-        }
+            return true;
+        });
 
         return response()->json([
-            'voted' => ! $exists,
+            'voted' => $voted,
             'votes' => $report->votes()->count(),
         ])->header('Cache-Control', 'no-store');
     }
 
+    public function exportCsvUrl(Request $request)
+    {
+        // Terbitkan URL unduhan bertanda (HMAC + expires 60 detik) untuk admin.
+        // Token API tidak pernah ditaruh di query string.
+        $payload = base64_encode(json_encode([
+            's' => strtolower($request->input('status', 'semua')),
+            'k' => strtolower($request->input('kategori', 'semua')),
+            'q' => $request->input('q'),
+        ]));
+        $exp = now()->addSeconds(60)->getTimestamp();
+        $sig = hash_hmac('sha256', $payload . '.' . $exp, config('app.key'));
+
+        $url = url('/api/admin/export/reports')
+            . '?p=' . urlencode($payload) . '&e=' . $exp . '&sig=' . $sig;
+
+        return response()->json(['url' => $url])->header('Cache-Control', 'no-store');
+    }
+
     public function exportCsv(Request $request)
     {
-        // Route TANPA middleware auth: izinkan token via query (?token=) agar bisa
-        // dibuka dari url_launcher (unduhan browser), ATAU via Authorization: Bearer.
-        // JANGAN tiru pola token-di-URL pada endpoint lain.
-        $user = $request->user();
-        $isAdmin = $user && $user->tokenCan('role:admin');
-        if (! $isAdmin && $request->bearerToken()) {
-            $bearerTok = \Laravel\Sanctum\PersonalAccessToken::findToken($request->bearerToken());
-            $isAdmin = $bearerTok
-                && $bearerTok->tokenable
-                && collect($bearerTok->abilities ?? [])->contains('role:admin');
+        // Hanya URL bertanda yang diizinkan; tanpa token di query string.
+        $payload = $request->input('p');
+        $exp = (int) $request->input('e', 0);
+        $sig = $request->input('sig');
+        if (! $payload || ! $exp || ! $sig || now()->getTimestamp() > $exp) {
+            abort(403, 'Link kedaluwarsa');
         }
-        if (! $isAdmin && $request->filled('token')) {
-            // Menerima plainTextToken penuh ("id|hash") atau hash saja.
-            $tok = \Laravel\Sanctum\PersonalAccessToken::findToken($request->input('token'))
-                ?? \Laravel\Sanctum\PersonalAccessToken::findToken(explode('|', $request->input('token'), 2)[1] ?? '');
-            $isAdmin = $tok
-                && $tok->tokenable
-                && collect($tok->abilities ?? [])->contains('role:admin');
+        if (! hash_equals(hash_hmac('sha256', $payload . '.' . $exp, config('app.key')), $sig)) {
+            abort(403, 'Signature tidak valid');
         }
-        if (! $isAdmin) {
-            abort(403);
-        }
+        $filters = json_decode(base64_decode($payload), true) ?? [];
 
         $query = Report::with('user:id,name,username')
             ->orderByDesc('id');
 
-        if ($request->filled('status')) {
-            $query->where('status', strtolower($request->input('status')));
+        if (($filters['s'] ?? 'semua') !== 'semua') {
+            $query->where('status', $filters['s']);
         }
-        if ($request->filled('kategori')) {
-            $query->where('kategori', strtolower($request->input('kategori')));
+        if (($filters['k'] ?? 'semua') !== 'semua') {
+            $query->where('kategori', $filters['k']);
         }
-        if ($request->filled('q')) {
-            $q = $this->sanitizeSearch($request->input('q'));
+        if (! empty($filters['q'])) {
+            $q = $this->sanitizeSearch($filters['q']);
             if ($q === null) {
                 $query->whereRaw('1 = 0');
             } else {
@@ -338,7 +362,6 @@ class ReportController extends Controller
         $report->load('user');
         $report->status = strtolower($report->status);
         $report->kategori = strtolower($report->kategori);
-        $report->foto_url = $report->foto_path ? asset('storage/' . $report->foto_path) : null;
 
         return response()->json(['report' => $report], 201);
     }

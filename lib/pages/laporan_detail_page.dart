@@ -27,22 +27,23 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
   late Laporan _currentLaporan;
   bool _voting = false;
   bool _confirming = false;
+  int _refreshSeq = 0;
   final _authService = locator<AuthService>();
   final _apiClient = locator<ApiClient>();
 
   @override
   void initState() {
     super.initState();
-    // Salin, jangan merujuk objek list parent → snapshot mandiri.
-    _currentLaporan = widget.laporan.copyWithLaporan();
+    _currentLaporan = widget.laporan;
     _refreshDetail();
   }
 
   Future<void> _refreshDetail() async {
     if (!mounted) return;
+    final seq = ++_refreshSeq;
     try {
       final fresh = await _apiClient.getReport(_currentLaporan.id);
-      if (!mounted || _voting) return;
+      if (!mounted || _voting || seq != _refreshSeq) return;
       setState(() => _currentLaporan = fresh);
     } catch (_) {
       if (mounted) {
@@ -60,8 +61,10 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
       final result = await _apiClient.toggleVote(_currentLaporan.id);
       if (mounted) {
         setState(() {
-          _currentLaporan.voteCount = (result['votes'] as num?)?.toInt() ?? _currentLaporan.voteCount;
-          _currentLaporan.votedByMe = result['voted'] == true;
+          _currentLaporan = _currentLaporan.copyWith(
+            voteCount: (result['votes'] as num?)?.toInt(),
+            votedByMe: result['voted'] == true,
+          );
         });
       }
     } catch (_) {
@@ -100,7 +103,7 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
   void _openGoogleMaps(double latitude, double longitude) async {
     final url = 'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude';
     if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url));
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     } else {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -115,7 +118,11 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
     try {
       await _apiClient.confirmReport(_currentLaporan.id, konfirmasi);
       if (!mounted) return;
-      setState(() => _currentLaporan.konfirmasiUser = konfirmasi);
+      setState(() {
+        _currentLaporan = _currentLaporan.copyWith(konfirmasiUser: konfirmasi);
+      });
+      await _refreshDetail();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Terima kasih atas konfirmasimu')),
       );
@@ -150,13 +157,14 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
                 child: GestureDetector(
                   onTap: () => _openPhotoViewer(_currentLaporan.fotoUrl!),
                   child: Hero(
-                    tag: _currentLaporan.fotoUrl!,
+                    tag: 'main-${_currentLaporan.fotoUrl!}',
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(24),
                       child: CachedNetworkImage(
                         imageUrl: _currentLaporan.fotoUrl!,
                         fit: BoxFit.cover,
                         height: 220,
+                        memCacheWidth: 640,
                         placeholder: (_, __) => Container(
                           height: 220,
                           color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
@@ -477,10 +485,13 @@ class _LaporanDetailPageState extends State<LaporanDetailPage> {
                         child: GestureDetector(
                           onTap: () => _openPhotoViewer(update.fotoDokumentasiUrl!),
                           child: Hero(
-                            tag: update.fotoDokumentasiUrl!,
+                            tag: 'hist-${update.fotoDokumentasiUrl!}',
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(8),
-                              child: CachedNetworkImage(imageUrl: update.fotoDokumentasiUrl!),
+                              child: CachedNetworkImage(
+                                imageUrl: update.fotoDokumentasiUrl!,
+                                memCacheWidth: 288,
+                              ),
                             ),
                           ),
                         ),

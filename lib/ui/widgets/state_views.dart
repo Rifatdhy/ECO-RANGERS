@@ -98,7 +98,7 @@ class ErrorRetry extends StatelessWidget {
   }
 }
 
-class SkeletonBox extends StatelessWidget {
+class SkeletonBox extends StatefulWidget {
   const SkeletonBox({super.key, this.width = double.infinity, this.height = 16, this.radius = AppRadius.md});
 
   final double width;
@@ -106,14 +106,41 @@ class SkeletonBox extends StatelessWidget {
   final double radius;
 
   @override
+  State<SkeletonBox> createState() => _SkeletonBoxState();
+}
+
+class _SkeletonBoxState extends State<SkeletonBox> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+    lowerBound: 0.45,
+    upperBound: 1.0,
+  )..repeat(reverse: true);
+
+  @override
+  void initState() {
+    super.initState();
+    if (MediaQuery.of(context).disableAnimations) _controller.stop();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Container(
-      width: width,
-      height: height,
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(radius),
+    return FadeTransition(
+      opacity: _controller,
+      child: Container(
+        width: widget.width,
+        height: widget.height,
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(widget.radius),
+        ),
       ),
     );
   }

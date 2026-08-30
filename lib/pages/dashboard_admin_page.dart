@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../locator.dart';
@@ -29,6 +30,7 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
   List<Laporan> _reports = [];
   Map<String, dynamic> _stats = {};
   bool _isLoading = true;
+  String? _error;
   String _selectedFilter = 'Semua';
   final List<String> _filterOptions = ['Semua', 'Pending', 'Diproses', 'Selesai', 'Ditolak'];
   String _searchQuery = '';
@@ -41,29 +43,39 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
     _loadData();
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadData({bool silent = false}) async {
     final seq = ++_reqSeq;
     if (!mounted) return;
-    setState(() => _isLoading = true);
+    if (!silent || _reports.isEmpty) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+    }
+    // getStats & getMe tidak tergantung filter → hanya di-refresh saat data kosong.
+    final needStats = _stats.isEmpty || _reports.isEmpty;
     try {
-      _user = await locator<AuthService>().getMe();
-      final results = await Future.wait([
+      final results = await Future.wait<Object?>([
+        locator<AuthService>().getMe().catchError((_) => null),
         _apiClient.fetchReportsAsModel(
           status: _selectedFilter,
           limit: 500,
           q: _searchQuery.isEmpty ? null : _searchQuery,
         ),
-        _apiClient.getStats(),
+        if (needStats) _apiClient.getStats().catchError((_) => <String, dynamic>{}),
       ]);
       if (seq != _reqSeq || !mounted) return;
-      _reports = results[0] as List<Laporan>;
-      _stats = results[1] as Map<String, dynamic>;
-      setState(() {});
+      final reports = results[1] as List<Laporan>;
+      setState(() {
+        _user = results[0] as User?;
+        _reports = reports;
+        if (needStats && results.length > 2) {
+          _stats = results[2] as Map<String, dynamic>;
+        }
+      });
     } catch (e) {
       if (seq != _reqSeq || !mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memuat data: ${e.toString()}')),
-      );
+      setState(() => _error = e.toString());
     } finally {
       if (seq == _reqSeq && mounted) setState(() => _isLoading = false);
     }
@@ -84,6 +96,22 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
   }
 
   Future<void> _exportCsv() async {
+    if (!kIsWeb) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ekspor CSV hanya tersedia di web')),
+        );
+      }
+      return;
+    }
+    if (!(_user?.isAdmin ?? false)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ekspor CSV hanya untuk admin')),
+        );
+      }
+      return;
+    }
     try {
       final bytes = await _apiClient.downloadReportCsv(
         status: _selectedFilter,
@@ -324,13 +352,18 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
               sliver: _isLoading
                   ? const SliverToBoxAdapter(child: SizedBox.shrink())
-                  : filtered.isEmpty
-                      ? SliverToBoxAdapter(child: _buildEmptyState())
-                      : SliverList.separated(
-                          itemBuilder: (context, index) => _buildReportCard(filtered[index]),
-                          separatorBuilder: (_, __) => const SizedBox(height: 14),
-                          itemCount: filtered.length,
-                        ),
+                  : _error != null
+                      ? SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: ErrorRetry(onRetry: _loadData, message: _error ?? 'Terjadi kesalahan'),
+                        )
+                      : filtered.isEmpty
+                          ? SliverToBoxAdapter(child: _buildEmptyState())
+                          : SliverList.separated(
+                              itemBuilder: (context, index) => _buildReportCard(filtered[index]),
+                              separatorBuilder: (_, __) => const SizedBox(height: 14),
+                              itemCount: filtered.length,
+                            ),
             ),
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
           ],
@@ -470,7 +503,7 @@ class _DashboardAdminPageState extends State<DashboardAdminPage> {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => LaporanDetailPage(laporan: report)),
-            ).then((_) => _loadData());
+            ).then((_) { if (mounted) _loadData(); });
           },
         ),
       ],

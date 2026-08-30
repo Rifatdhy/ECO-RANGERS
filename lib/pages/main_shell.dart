@@ -28,25 +28,28 @@ class _MainShellState extends State<MainShell> {
       context,
       MaterialPageRoute(builder: (_) => const BuatLaporanPage()),
     ).then((_) {
-      if (mounted) setState(() {});
-      _homeKey.currentState?.refresh();
+      if (!mounted) return;
+      // Refresh home secara background, tanpa flash loading penuh.
+      _homeKey.currentState?.refresh(silent: true);
     });
   }
 
   void _onDestinationSelected(int i) {
+    if (i == 2) return; // slot FAB tengah: tidak ada halaman, jangan pindah.
     setState(() {
       _built.add(i);
       _index = i;
     });
+    // Refresh silent: data lama tetap tampil, hindari flash loading per tab.
     switch (i) {
       case 0:
-        _homeKey.currentState?.refresh();
+        _homeKey.currentState?.refresh(silent: true);
       case 1:
-        _mapKey.currentState?.refresh();
+        _mapKey.currentState?.refresh(silent: true);
       case 3:
-        _activityKey.currentState?.refresh();
+        _activityKey.currentState?.refresh(silent: true);
       case 4:
-        _profileKey.currentState?.refresh();
+        _profileKey.currentState?.refresh(silent: true);
     }
   }
 
@@ -72,7 +75,10 @@ class _MainShellState extends State<MainShell> {
           children: [
             Positioned(
               top: 0,
-              child: GestureDetector(
+              child: Semantics(
+                label: 'Buat laporan',
+                button: true,
+                child: GestureDetector(
                 onTap: _openCreateReport,
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
@@ -95,6 +101,7 @@ class _MainShellState extends State<MainShell> {
                   ),
                   child: const Icon(Icons.add_rounded, color: Colors.white, size: 32),
                 ),
+              ),
               ),
             ),
           ],

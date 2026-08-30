@@ -29,7 +29,12 @@ class CsvExportTest extends TestCase
         ]);
         $token = $admin->createToken('csv-export', ['role:admin'])->plainTextToken;
 
-        $response = $this->get('/api/admin/export/reports?token=' . $token);
+        $urlRes = $this->withToken($token)
+            ->get('/api/admin/export/reports/url')
+            ->assertOk();
+        $signedUrl = $urlRes->json('url');
+
+        $response = $this->get(parse_url($signedUrl, PHP_URL_PATH) . '?' . parse_url($signedUrl, PHP_URL_QUERY));
 
         $response->assertHeader('Cache-Control');
         $cc = $response->headers->get('Cache-Control');
@@ -39,5 +44,23 @@ class CsvExportTest extends TestCase
         $content = $response->streamedContent();
         $this->assertStringStartsWith("\xEF\xBB\xBF", $content);
         $this->assertStringContainsString("'=SUM(1,1)", $content);
+    }
+
+    #[Test]
+    public function signed_url_is_required_and_expired_links_are_rejected(): void
+    {
+        $this->get('/api/admin/export/reports')->assertStatus(403);
+
+        $admin = User::factory()->create(['is_admin' => true]);
+        $token = $admin->createToken('csv-export', ['role:admin'])->plainTextToken;
+        $this->withToken($token)
+            ->get('/api/admin/export/reports/url')
+            ->assertOk();
+
+        $payload = base64_encode(json_encode(['s' => 'semua', 'k' => 'semua', 'q' => null]));
+        $exp = now()->subMinute()->getTimestamp();
+        $sig = hash_hmac('sha256', $payload . '.' . $exp, config('app.key'));
+        $this->get('/api/admin/export/reports?p=' . urlencode($payload) . '&e=' . $exp . '&sig=' . $sig)
+            ->assertStatus(403);
     }
 }

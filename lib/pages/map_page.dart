@@ -31,22 +31,46 @@ class MapPageState extends State<MapPage> {
     _load();
   }
 
-  void refresh() => _load();
+  void refresh({bool silent = false}) => _load(silent: silent);
 
-  Future<void> _load() async {
+  LatLng? _center;
+  int _reqSeq = 0;
+
+  Future<void> _load({bool silent = false}) async {
+    final seq = ++_reqSeq;
     if (!mounted) return;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      _reports = await _api.fetchReportsAsModel(limit: 500);
-      if (mounted) setState(() {});
-    } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
-    } finally {
-      if (mounted) setState(() => _loading = false);
+    if (!silent || _reports.isEmpty) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
     }
+    try {
+      final reports = await _api.fetchReportsAsModel(limit: 500);
+      if (seq != _reqSeq || !mounted) return;
+      final coords = reports
+          .where((l) => l.latitude != null && l.longitude != null)
+          .toList();
+      setState(() {
+        _reports = reports;
+        _center = _computeCenter(coords);
+      });
+    } catch (e) {
+      if (seq != _reqSeq || !mounted) return;
+      setState(() => _error = e.toString());
+    } finally {
+      if (seq == _reqSeq && mounted) setState(() => _loading = false);
+    }
+  }
+
+  LatLng? _computeCenter(List<Laporan> coords) {
+    if (coords.isEmpty) return null;
+    if (coords.length == 1) {
+      return LatLng(coords.first.latitude!, coords.first.longitude!);
+    }
+    final latAvg = coords.map((l) => l.latitude!).reduce((a, b) => a + b) / coords.length;
+    final lngAvg = coords.map((l) => l.longitude!).reduce((a, b) => a + b) / coords.length;
+    return LatLng(latAvg, lngAvg);
   }
 
   List<Laporan> get _withCoords =>
@@ -107,7 +131,7 @@ class MapPageState extends State<MapPage> {
                 child: _loading
                     ? const Center(child: CircularProgressIndicator())
                     : _error != null
-                        ? ErrorRetry(onRetry: _load, message: _error!)
+                        ? ErrorRetry(onRetry: _load, message: _error ?? 'Terjadi kesalahan')
                         : _withCoords.isEmpty
                             ? const EmptyState(
                                 icon: Icons.location_off_outlined,
@@ -126,12 +150,7 @@ class MapPageState extends State<MapPage> {
 
   Widget _buildMap() {
     final coords = _withCoords;
-    LatLng center = LatLng(coords.first.latitude!, coords.first.longitude!);
-    if (coords.length > 1) {
-      final latAvg = coords.map((l) => l.latitude!).reduce((a, b) => a + b) / coords.length;
-      final lngAvg = coords.map((l) => l.longitude!).reduce((a, b) => a + b) / coords.length;
-      center = LatLng(latAvg, lngAvg);
-    }
+    final center = _center ?? _computeCenter(coords) ?? const LatLng(-6.2, 106.8);
 
     return FlutterMap(
       mapController: _mapController,
@@ -150,11 +169,15 @@ class MapPageState extends State<MapPage> {
             for (final l in coords)
               Marker(
                 point: LatLng(l.latitude!, l.longitude!),
-                width: 40,
-                height: 40,
-                child: GestureDetector(
-                  onTap: () => _onMarkerTap(l),
-                  child: _StatusMarker(status: l.status, selected: _selected?.id == l.id),
+                width: 48,
+                height: 48,
+                child: Semantics(
+                  label: l.judul,
+                  button: true,
+                  child: GestureDetector(
+                    onTap: () => _onMarkerTap(l),
+                    child: _StatusMarker(status: l.status, selected: _selected?.id == l.id),
+                  ),
                 ),
               ),
           ],

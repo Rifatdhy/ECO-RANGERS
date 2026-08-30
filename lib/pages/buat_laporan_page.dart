@@ -18,6 +18,7 @@ class BuatLaporanPage extends StatefulWidget {
 }
 
 class _BuatLaporanPageState extends State<BuatLaporanPage> {
+  final _picker = ImagePicker();
   final _judulCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   String _kategori = 'sampah';
@@ -42,13 +43,14 @@ class _BuatLaporanPageState extends State<BuatLaporanPage> {
 
   bool get _canNext => switch (_step) {
         0 => _picked != null,
-        1 => _lat != null && _lng != null,
+        1 => true,
         2 => _judulCtrl.text.trim().length >= 5 && _descCtrl.text.trim().length >= 10,
         _ => true,
       };
 
   Future<void> _pickImage() async {
-    final x = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 82);
+    final x = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 82);
+    if (!mounted) return;
     if (x != null) setState(() => _picked = x);
   }
 
@@ -217,6 +219,11 @@ class _BuatLaporanPageState extends State<BuatLaporanPage> {
                 )
               else
                 _locCard(),
+              const SizedBox(height: AppSpacing.sm),
+              const Text(
+                'Lokasi opsional — kamu bisa lanjut tanpa lokasi.',
+                style: TextStyle(color: AppColors.textMuted),
+              ),
             ],
           ),
         );

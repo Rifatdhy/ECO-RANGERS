@@ -129,7 +129,8 @@ class AuthService {
         return null; // penyimpanan aman tidak tersedia → perlakukan sebagai belum login
       }
     }
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferences.getInstance().catchError((_) => null);
+    if (prefs == null) return null;
     return prefs.getString(_tokenKey);
   }
 
@@ -143,7 +144,8 @@ class AuthService {
       }
       return;
     }
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferences.getInstance().catchError((_) => null);
+    if (prefs == null) return;
     await prefs.setString(_userKey, value);
   }
 

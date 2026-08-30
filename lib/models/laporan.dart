@@ -13,10 +13,10 @@ class Laporan {
   final double? longitude;
   final String? fotoPath;
   final String? fotoUrl;
-  String status; // Status terakhir, bisa diupdate
-  String? konfirmasiUser; // 'sesuai' / 'tidak_tuntas' / null
-  int voteCount; // Jumlah dukungan, bisa di-update saat toggle
-  bool votedByMe;
+  final String status;
+  final String? konfirmasiUser;
+  final int voteCount;
+  final bool votedByMe;
   final DateTime createdAt;
   final User? user;
   final List<ReportUpdate> updates;
@@ -82,8 +82,13 @@ class Laporan {
     );
   }
 
-  /// Salinan mandiri (snapshot), updates & user direferensikan apa adanya.
-  Laporan copyWithLaporan() => Laporan(
+  Laporan copyWith({
+    String? status,
+    String? konfirmasiUser,
+    int? voteCount,
+    bool? votedByMe,
+  }) =>
+      Laporan(
         id: id,
         judul: judul,
         kategori: kategori,
@@ -93,10 +98,10 @@ class Laporan {
         longitude: longitude,
         fotoPath: fotoPath,
         fotoUrl: fotoUrl,
-        status: status,
-        konfirmasiUser: konfirmasiUser,
-        voteCount: voteCount,
-        votedByMe: votedByMe,
+        status: status ?? this.status,
+        konfirmasiUser: konfirmasiUser ?? this.konfirmasiUser,
+        voteCount: voteCount ?? this.voteCount,
+        votedByMe: votedByMe ?? false,
         createdAt: createdAt,
         updates: updates,
         user: user,

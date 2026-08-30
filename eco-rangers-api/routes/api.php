@@ -14,8 +14,10 @@ Route::post('/login', [AuthController::class, 'login'])->middleware($loginThrott
 Route::post('/admin/login', [AdminAuthController::class, 'login'])->middleware($loginThrottle);
 
 // Rute testing: hanya aktif bila config('security.testing_routes') true
-// (default local/testing). Di produksi WAJIB false lewat .env.
-if (config('security.testing_routes')) {
+// (default local/testing) DAN environment bukan production.
+// Di produksi WAJIB false lewat .env; guard ganda mencegah reset data
+// bila misconfig.
+if (config('security.testing_routes') && app()->environment() !== 'production') {
     Route::post('/testing/seed-admin', function () {
         $email = config('security.admin_email');
         $password = config('security.admin_password');
@@ -110,10 +112,11 @@ Route::middleware(['auth:sanctum', 'ability:role:admin'])->group(function () {
 
     // Untuk membersihkan semua laporan
     Route::post('/admin/clear-all-reports', [ReportController::class, 'clearAll']);
+
+    // Minta URL unduhan CSV bertanda (signed, kedaluwarsa 60 detik).
+    Route::get('/admin/export/reports/url', [ReportController::class, 'exportCsvUrl']);
 });
 
-// Export CSV: TANPA middleware auth (Bearer ATAU ?token=) karena url_launcher/browser
-// tidak bisa membawa header. Token via query hanya di endpoint ini (response diberi
-// Cache-Control: no-store). JANGAN tiru pola token-di-URL di endpoint lain;
-// gunakan Authorization header bila memungkinkan.
+// Export CSV: hanya dapat diakses via URL bertanda (HMAC + expires) yang
+// diterbitkan oleh /admin/export/reports/url — tidak ada token di query.
 Route::get('/admin/export/reports', [ReportController::class, 'exportCsv']);

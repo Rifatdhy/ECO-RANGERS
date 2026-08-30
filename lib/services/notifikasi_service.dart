@@ -18,6 +18,9 @@ class NotifikasiService {
   static final NotifikasiService instance = NotifikasiService._();
 
   static const _baselineKey = 'notif_baseline_statuses';
+  static const _cacheTtl = Duration(seconds: 20);
+  static List<Laporan>? _cache;
+  static DateTime? _cacheAt;
 
   Future<Map<String, String>> _readBaseline() async {
     final prefs = await SharedPreferences.getInstance();
@@ -41,8 +44,14 @@ class NotifikasiService {
   }
 
   Future<List<Laporan>> _fetchMine() async {
+    if (_cache != null && DateTime.now().difference(_cacheAt!) < _cacheTtl) {
+      return _cache!;
+    }
     final api = locator<ApiClient>();
-    return api.fetchReportsAsModel(limit: 500);
+    final reports = await api.fetchReportsAsModel(limit: 500);
+    _cache = reports;
+    _cacheAt = DateTime.now();
+    return reports;
   }
 
   /// Baca saja: daftar laporan dengan status berubah dari baseline

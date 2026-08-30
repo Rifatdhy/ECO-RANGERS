@@ -39,6 +39,7 @@ class ReportCard extends StatelessWidget {
                     imageUrl: laporan.fotoUrl!,
                     width: 72,
                     height: 72,
+                    memCacheWidth: 144,
                     fit: BoxFit.cover,
                     errorWidget: (_, __, ___) => _cardIcon(context),
                     placeholder: (_, __) => const SkeletonBox(width: 72, height: 72, radius: AppRadius.lg),

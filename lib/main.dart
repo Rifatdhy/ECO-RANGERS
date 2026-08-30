@@ -11,7 +11,12 @@ import 'ui/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: ".env");
+  // Di web .env tidak di-bundle; jangan biarkan kegagalan memuat memblokir boot.
+  try {
+    await dotenv.load(fileName: ".env");
+  } catch (_) {
+    // Abaikan; ensureBaseUrl akan memakai fallback dari Uri.base.host.
+  }
 
   setupLocator();
   await ensureBaseUrl();

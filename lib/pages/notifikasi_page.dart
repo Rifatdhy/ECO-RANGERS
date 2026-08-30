@@ -20,6 +20,7 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
   List<Laporan> _unseen = [];
   bool _loading = true;
   String? _error;
+  int _reqSeq = 0;
 
   @override
   void initState() {
@@ -28,6 +29,7 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
   }
 
   Future<void> _load() async {
+    final seq = ++_reqSeq;
     if (!mounted) return;
     setState(() {
       _loading = true;
@@ -35,11 +37,13 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
     });
     try {
       final list = await NotifikasiService.instance.fetchUnseen();
-      if (mounted) setState(() => _unseen = list);
+      if (seq != _reqSeq || !mounted) return;
+      setState(() => _unseen = list);
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (seq != _reqSeq || !mounted) return;
+      setState(() => _error = e.toString());
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (seq == _reqSeq && mounted) setState(() => _loading = false);
     }
   }
 
@@ -61,27 +65,34 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
       body: RefreshIndicator(
         onRefresh: _load,
         child: _loading
-            ? const Center(child: CircularProgressIndicator())
+            ? ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: const [
+                  Padding(
+                    padding: EdgeInsets.all(AppSpacing.lg),
+                    child: Column(children: [
+                      SkeletonReportCard(),
+                      SizedBox(height: 8),
+                      SkeletonReportCard(),
+                      SizedBox(height: 8),
+                      SkeletonReportCard(),
+                    ]),
+                  ),
+                ],
+              )
             : _error != null
                 ? ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    children: [ErrorRetry(onRetry: _load, message: _error!, compact: true)],
+                    children: [ErrorRetry(onRetry: _load, message: _error ?? 'Terjadi kesalahan', compact: true)],
                   )
                 : _unseen.isEmpty
                     ? ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
                         children: const [
-                          Padding(
-                            padding: EdgeInsets.only(top: 120),
-                            child: Column(
-                              children: [
-                                Icon(Icons.notifications_none_rounded, size: 56, color: AppColors.textMuted),
-                                SizedBox(height: 12),
-                                Text('Tidak ada notifikasi baru', style: TextStyle(fontWeight: FontWeight.w600)),
-                                SizedBox(height: 4),
-                                Text('Perubahan status laporanmu akan muncul di sini.', style: TextStyle(color: AppColors.textMuted)),
-                              ],
-                            ),
+                          EmptyState(
+                            icon: Icons.notifications_none_rounded,
+                            title: 'Tidak ada notifikasi baru',
+                            subtitle: 'Perubahan status laporanmu akan muncul di sini.',
                           ),
                         ],
                       )

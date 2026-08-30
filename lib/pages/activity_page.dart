@@ -24,6 +24,7 @@ class ActivityPageState extends State<ActivityPage> {
   List<Laporan> _all = [];
   bool _loading = true;
   String? _error;
+  int _reqSeq = 0;
 
   @override
   void initState() {
@@ -31,22 +32,27 @@ class ActivityPageState extends State<ActivityPage> {
     _load();
   }
 
-  void refresh() => _load();
+  void refresh({bool silent = false}) => _load(silent: silent);
 
-  Future<void> _load() async {
+  Future<void> _load({bool silent = false}) async {
+    final seq = ++_reqSeq;
     if (!mounted) return;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    if (!silent || _all.isEmpty) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       _user = await locator<AuthService>().getMe();
-      _all = await _api.fetchReportsAsModel();
-      if (mounted) setState(() {});
+      _all = await _api.fetchReportsAsModel(limit: 20);
+      if (seq != _reqSeq || !mounted) return;
+      setState(() {});
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (seq != _reqSeq || !mounted) return;
+      setState(() => _error = e.toString());
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (seq == _reqSeq && mounted) setState(() => _loading = false);
     }
   }
 
@@ -82,13 +88,19 @@ class ActivityPageState extends State<ActivityPage> {
                 const SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.all(AppSpacing.lg),
-                    child: Center(child: CircularProgressIndicator()),
+                    child: Column(children: [
+                      SkeletonReportCard(),
+                      SizedBox(height: AppSpacing.sm),
+                      SkeletonReportCard(),
+                      SizedBox(height: AppSpacing.sm),
+                      SkeletonReportCard(),
+                    ]),
                   ),
                 )
               else if (_error != null)
                 SliverFillRemaining(
                   hasScrollBody: false,
-                  child: ErrorRetry(onRetry: _load, message: _error!),
+                  child: ErrorRetry(onRetry: _load, message: _error ?? 'Terjadi kesalahan'),
                 )
               else if (my.isEmpty)
                 SliverFillRemaining(
@@ -108,7 +120,7 @@ class ActivityPageState extends State<ActivityPage> {
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(builder: (_) => LaporanDetailPage(laporan: my[i])),
-                      ).then((_) => _load()),
+                      ).then((_) { if (mounted) _load(); }),
                     ),
                     separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
                     itemCount: my.length,

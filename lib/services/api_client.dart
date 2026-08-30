@@ -215,7 +215,8 @@ class ApiClient {
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
-  /// Unduh CSV ekspor admin; token dikirim via header, bukan URL.
+  /// Unduh CSV ekspor admin: ambil URL bertanda (signed) dulu, lalu unduh
+  /// lewat header Authorization — token tidak pernah di query string.
   Future<Uint8List> downloadReportCsv({String? status, String? q}) async {
     final t = await AuthService.instance.getToken();
     final qy = <String, String>{
@@ -223,10 +224,25 @@ class ApiClient {
         'status': status.toLowerCase(),
       if (q != null && q.isNotEmpty) 'q': q,
     };
+    final urlRes = await _guard(
+      _client.get(
+        Uri.parse('$baseUrl/api/admin/export/reports/url')
+            .replace(queryParameters: qy),
+        headers: {
+          'Accept': 'application/json',
+          if (t != null) 'Authorization': 'Bearer $t',
+        },
+      ),
+      'CSV export URL',
+    );
+    if (urlRes.statusCode != 200) {
+      _checkAuth(urlRes);
+      throw Exception('Export gagal: ${urlRes.statusCode} ${urlRes.body}');
+    }
+    final url = (jsonDecode(urlRes.body) as Map<String, dynamic>)['url'] as String;
     final res = await _guard(
       _client.get(
-        Uri.parse('$baseUrl/api/admin/export/reports')
-            .replace(queryParameters: qy),
+        Uri.parse(url),
         headers: {
           'Accept': 'application/json',
           if (t != null) 'Authorization': 'Bearer $t',

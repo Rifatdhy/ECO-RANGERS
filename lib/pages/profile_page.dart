@@ -19,6 +19,7 @@ class ProfilePageState extends State<ProfilePage> {
   User? _user;
   bool _loading = true;
   String? _error;
+  int _reqSeq = 0;
 
   @override
   void initState() {
@@ -26,24 +27,29 @@ class ProfilePageState extends State<ProfilePage> {
     _load();
   }
 
-  void refresh() => _load();
+  void refresh({bool silent = false}) => _load(silent: silent);
 
   String _initial(String? a, String? b) =>
       ((a != null && a.isNotEmpty) ? a : (b ?? 'R')).substring(0, 1).toUpperCase();
 
-  Future<void> _load() async {
+  Future<void> _load({bool silent = false}) async {
+    final seq = ++_reqSeq;
     if (!mounted) return;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    if (!silent || _user == null) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       _user = await locator<AuthService>().getMe();
-      if (mounted) setState(() {});
+      if (seq != _reqSeq || !mounted) return;
+      setState(() {});
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (seq != _reqSeq || !mounted) return;
+      setState(() => _error = e.toString());
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (seq == _reqSeq && mounted) setState(() => _loading = false);
     }
   }
 
@@ -79,14 +85,22 @@ class ProfilePageState extends State<ProfilePage> {
                 ),
               ),
               if (_loading)
-                const SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Center(child: CircularProgressIndicator()),
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.all(AppSpacing.lg),
+                    child: Column(children: [
+                      SkeletonReportCard(),
+                      SizedBox(height: AppSpacing.sm),
+                      SkeletonReportCard(),
+                      SizedBox(height: AppSpacing.sm),
+                      SkeletonReportCard(),
+                    ]),
+                  ),
                 )
               else if (_error != null)
                 SliverFillRemaining(
                   hasScrollBody: false,
-                  child: ErrorRetry(message: _error!, onRetry: _load),
+                  child: ErrorRetry(message: _error ?? 'Terjadi kesalahan', onRetry: _load),
                 )
               else
                 ..._buildProfileSlivers(theme, user),
