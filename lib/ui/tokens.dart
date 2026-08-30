@@ -22,6 +22,23 @@ abstract final class AppColors {
 
   /// Warna placeholder foto/avatar kosong.
   static const photoPlaceholder = Color(0xFFE9E9EB);
+
+  // Traffic-light status colors (civic-tech universal pattern)
+  static const statusPending = Color(0xFFFBBF24); // yellow
+  static const statusDiproses = Color(0xFF3B82F6); // blue
+  static const statusSelesai = Color(0xFF34C759); // green
+  static const statusDitolak = Color(0xFFEF4444); // red
+
+  /// Get status color by status string
+  static Color statusColor(String status) {
+    return switch (status.toLowerCase()) {
+      'pending' => statusPending,
+      'diproses' || 'proses' => statusDiproses,
+      'selesai' || 'completed' => statusSelesai,
+      'ditolak' || 'rejected' => statusDitolak,
+      _ => textMuted,
+    };
+  }
 }
 
 abstract final class AppSpacing {

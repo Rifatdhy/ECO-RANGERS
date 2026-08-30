@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
@@ -10,10 +11,15 @@ import 'auth_service.dart';
 
 class ApiClient {
   static const _timeout = Duration(seconds: 15);
+  static const _maxRetries = 3;
+  static const _retryDelay = Duration(milliseconds: 500);
 
   // Satu client HTTP di-reuse seluruh method → connexion pooling,
   // tanpa TLS/TCP handshake baru tiap request.
   final http.Client _client = http.Client();
+
+  // Request deduplication: mencegah race condition dari multiple calls
+  final Map<String, Future<dynamic>> _inflightRequests = {};
 
   /// Jika token tak valid/expired, bersihkan sesi & arahkan ke halaman login.
   void _checkAuth(http.Response res) {
@@ -22,10 +28,34 @@ class ApiClient {
     }
   }
 
-  static Future<T> _guard<T>(Future<T> future, String op) {
-    return future.timeout(_timeout, onTimeout: () {
-      throw Exception('$op timeout setelah ${_timeout.inSeconds}s');
-    });
+  /// Execute with retry logic untuk network resilience
+  static Future<T> _guard<T>(Future<T> future, String op, {int maxRetries = _maxRetries}) async {
+    int attempts = 0;
+    while (true) {
+      attempts++;
+      try {
+        return await future.timeout(_timeout, onTimeout: () {
+          throw TimeoutException('$op timeout setelah ${_timeout.inSeconds}s', _timeout);
+        });
+      } on TimeoutException {
+        if (attempts >= maxRetries) rethrow;
+        await Future.delayed(_retryDelay * attempts);
+      } on SocketException {
+        if (attempts >= maxRetries) throw Exception('Koneksi internet tidak tersedia');
+        await Future.delayed(_retryDelay * attempts);
+      }
+    }
+  }
+
+  /// Request deduplication: mencegah duplicate calls bersamaan
+  Future<T> _dedup<T>(String key, Future<T> Function() fn) {
+    if (_inflightRequests.containsKey(key)) {
+      return _inflightRequests[key] as Future<T>;
+    }
+    final future = fn();
+    _inflightRequests[key] = future;
+    future.whenComplete(() => _inflightRequests.remove(key));
+    return future;
   }
 
   Future<List<dynamic>> getReports({String? status, String? kategori, String? q, int? limit, int? offset}) async {

@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ECO-RANGERS — Wireframe v3</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg: #0a0b14;
+  --surface: #12131f;
+  --surface2: #1a1c2e;
+  --surface3: #222540;
+  --border: #2a2d44;
+  --text: #e8e9f3;
+  --text2: #7a7d96;
+  --green: #34d399;
+  --green-dim: rgba(52, 211, 153, 0.06);
+  --green-border: rgba(52, 211, 153, 0.2);
+  --yellow: #fbbf24;
+  --yellow-dim: rgba(251, 191, 36, 0.06);
+  --blue: #60a5fa;
+  --blue-dim: rgba(96, 165, 250, 0.06);
+  --red: #f87171;
+  --red-dim: rgba(248, 113, 113, 0.06);
+  --purple: #a78bfa;
+  --radius: 10px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 40px 60px;
+  min-width: 1600px;
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 36px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--green);
+  letter-spacing: -0.3px;
+}
+.header h1 span { color: var(--text2); font-weight: 400; font-size: 0.8rem; margin-left: 8px; }
+.header .meta { font-size: 0.7rem; color: var(--text2); }
+.header .tags { display: flex; gap: 6px; margin-top: 4px; }
+.header .tags span {
+  font-size: 0.6rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--surface2);
+  color: var(--text2);
+  border: 1px solid var(--border);
+}
+
+/* Flow */
+.flow {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  padding-bottom: 24px;
+  align-items: flex-start;
+}
+.arrow {
+  display: flex;
+  align-items: center;
+  min-width: 24px;
+  color: var(--border);
+  font-size: 1rem;
+  padding-top: 100px;
+}
+
+/* Screen */
+.screen {
+  min-width: 220px;
+  flex-shrink: 0;
+}
+.screen-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text2);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.screen-label .num {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  background: var(--surface3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.55rem;
+  color: var(--text2);
+  font-weight: 700;
+}
+
+/* Phone */
+.phone {
+  width: 100%;
+  aspect-ratio: 9/19;
+  background: var(--surface);
+  border-radius: 18px;
+  border: 1.5px solid var(--border);
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+}
+.status {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 12px;
+  font-size: 0.5rem;
+  color: var(--text2);
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+}
+.app-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  background: var(--surface);
+}
+.app-bar .brand {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--green);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.app-bar .icons {
+  display: flex;
+  gap: 4px;
+}
+.app-bar .icons span {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--surface2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.45rem;
+  border: 1px solid var(--border);
+  position: relative;
+}
+.app-bar .icons .badge-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--red);
+}
+.content {
+  padding: 6px 10px;
+  height: calc(100% - 75px);
+  overflow: hidden;
+}
+.bottom-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-around;
+  padding: 6px 8px 8px;
+  background: var(--surface2);
+  border-top: 1px solid var(--border);
+}
+.bottom-bar .item {
+  font-size: 0.4rem;
+  color: var(--text2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+.bottom-bar .item.active { color: var(--green); }
+.bottom-bar .item .ic { font-size: 0.65rem; }
+
+/* Card */
+.card {
+  background: var(--surface2);
+  border-radius: var(--radius);
+  padding: 8px;
+  margin-bottom: 5px;
+  border: 1px solid var(--border);
+}
+.card-green {
+  background: var(--green-dim);
+  border-color: var(--green-border);
+}
+.card-yellow {
+  background: var(--yellow-dim);
+  border-color: rgba(251, 191, 36, 0.2);
+}
+.card-blue {
+  background: var(--blue-dim);
+  border-color: rgba(96, 165, 250, 0.2);
+}
+.card-red {
+  background: var(--red-dim);
+  border-color: rgba(248, 113, 113, 0.2);
+}
+
+/* Components */
+.stat-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin: 5px 0;
+}
+.stat {
+  background: var(--green-dim);
+  border: 1px solid var(--green-border);
+  border-radius: 8px;
+  padding: 5px;
+  text-align: center;
+}
+.stat .val { font-size: 0.8rem; font-weight: 700; color: var(--green); }
+.stat .lbl { font-size: 0.35rem; color: var(--text2); margin-top: 1px; }
+.stat .val.y { color: var(--yellow); }
+.stat .val.b { color: var(--blue); }
+.stat .val.r { color: var(--red); }
+
+.btn {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.45rem;
+  font-weight: 600;
+}
+.btn-solid { background: var(--green); color: #000; }
+.btn-ghost { border: 1px solid var(--green); color: var(--green); }
+
+.list-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.02);
+}
+.list-item:last-child { border: none; }
+.list-item .av {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--surface3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.55rem;
+  flex-shrink: 0;
+}
+.list-item .body { flex: 1; min-width: 0; }
+.list-item .body .t { font-size: 0.5rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.list-item .body .s { font-size: 0.35rem; color: var(--text2); }
+
+.badge {
+  font-size: 0.35rem;
+  padding: 1px 5px;
+  border-radius: 8px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.b-pending { background: var(--yellow-dim); color: var(--yellow); }
+.b-proses { background: var(--blue-dim); color: var(--blue); }
+.b-selesai { background: var(--green-dim); color: var(--green); }
+.b-ditolak { background: var(--red-dim); color: var(--red); }
+
+/* Map */
+.map-box {
+  width: 100%;
+  height: 80px;
+  border-radius: var(--radius);
+  background: linear-gradient(145deg, #0d1f15 0%, #081510 100%);
+  position: relative;
+  margin-bottom: 5px;
+  overflow: hidden;
+  border: 1px solid #1a3025;
+}
+.map-box .dot {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.3);
+}
+.map-box .dot.g { background: var(--green); }
+.map-box .dot.y { background: var(--yellow); }
+.map-box .dot.r { background: var(--red); }
+.map-box .dot.b { background: var(--blue); }
+.map-box .lbl {
+  position: absolute;
+  bottom: 3px;
+  left: 5px;
+  font-size: 0.35rem;
+  color: var(--text2);
+}
+
+/* Form */
+.form-label { font-size: 0.35rem; color: var(--text2); margin-bottom: 2px; }
+.form-field {
+  width: 100%;
+  padding: 4px 7px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 0.45rem;
+  margin-bottom: 5px;
+  font-family: inherit;
+}
+.form-ta { height: 28px; resize: none; }
+.upload-area {
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 8px;
+  text-align: center;
+  font-size: 0.4rem;
+  color: var(--text2);
+  margin-bottom: 5px;
+}
+
+/* Chips */
+.chips { display: flex; gap: 3px; margin-bottom: 5px; flex-wrap: wrap; }
+.chip {
+  font-size: 0.35rem;
+  padding: 2px 5px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  color: var(--text2);
+}
+.chip.on { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+
+/* Section */
+.section {
+  font-size: 0.4rem;
+  font-weight: 600;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin: 6px 0 3px;
+}
+
+/* Timeline */
+.timeline { position: relative; padding-left: 10px; }
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border);
+}
+.tl-item { position: relative; margin-bottom: 5px; }
+.tl-item::before {
+  content: '';
+  position: absolute;
+  left: -9px;
+  top: 3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--green);
+}
+.tl-item .tm { font-size: 0.3rem; color: var(--text2); }
+.tl-item .tx { font-size: 0.4rem; }
+
+/* Chart */
+.chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 40px;
+  padding: 3px;
+  background: var(--surface2);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+.chart .bar { flex: 1; border-radius: 2px 2px 0 0; background: var(--green); }
+
+/* Donut */
+.donut {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--green) 0deg 162deg,
+    var(--yellow) 162deg 234deg,
+    var(--blue) 234deg 306deg,
+    var(--red) 306deg 360deg
+  );
+  position: relative;
+}
+.donut::after {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  background: var(--surface);
+  border-radius: 50%;
+}
+
+/* Profile */
+.profile { text-align: center; padding: 6px 0; }
+.avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--green), #059669);
+  margin: 0 auto 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+}
+.profile .name { font-size: 0.6rem; font-weight: 700; }
+.profile .mail { font-size: 0.35rem; color: var(--text2); }
+
+/* Toggle */
+.toggle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.02);
+}
+.toggle-row .lbl { font-size: 0.45rem; }
+.toggle {
+  width: 18px; height: 10px;
+  border-radius: 5px;
+  background: var(--green);
+  position: relative;
+}
+.toggle::after {
+  content: '';
+  position: absolute;
+  right: 1px; top: 1px;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #fff;
+}
+.toggle.off { background: #444; }
+.toggle.off::after { right: auto; left: 1px; }
+
+/* Splash */
+.splash {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 4px;
+}
+.splash .ic { font-size: 2.5rem; }
+.splash .app { font-size: 1rem; font-weight: 700; color: var(--green); }
+.splash .tag { font-size: 0.45rem; color: var(--text2); }
+.splash .load {
+  margin-top: 16px;
+  width: 18px; height: 18px;
+  border: 2px solid var(--border);
+  border-top-color: var(--green);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Login */
+.login-hero { text-align: center; padding: 16px 0 10px; }
+.login-hero .ic { font-size: 2rem; }
+.login-hero .app { font-size: 0.9rem; font-weight: 700; color: var(--green); margin-top: 3px; }
+.login-hero .tag { font-size: 0.4rem; color: var(--text2); margin-top: 2px; }
+
+/* Detail */
+.detail-top { display: flex; gap: 5px; margin-bottom: 6px; }
+.detail-img {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  background: var(--surface2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+.detail-info .n { font-size: 0.55rem; font-weight: 600; }
+.detail-info .m { font-size: 0.35rem; color: var(--text2); }
+
+/* Notification accent */
+.notif-accent { width: 3px; border-radius: 2px; margin-right: 4px; flex-shrink: 0; }
+.notif-accent.green { background: var(--green); }
+.notif-accent.blue { background: var(--blue); }
+.notif-accent.yellow { background: var(--yellow); }
+
+/* Footer */
+.footer {
+  margin-top: 36px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 0.6rem;
+  color: var(--text2);
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Variant */
+.screen.wide { min-width: 250px; }
+.screen.narrow { min-width: 190px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>🌱 ECO-RANGERS <span>wireframe v3</span></h1>
+    <div class="tags">
+      <span>11 screens</span>
+      <span>civic tech</span>
+      <span>dark mode</span>
+      <span>Flutter</span>
+    </div>
+  </div>
+  <div class="meta">
+    <div>30 Aug 2026 — Rifat Dhiya</div>
+    <div style="margin-top:2px;">Inspired by: CityFix, SeeClickFix, FixMyStreet, Citizen</div>
+  </div>
+</div>
+
+<div class="flow">
+
+<!-- 1. SPLASH -->
+<div class="screen">
+  <div class="screen-label"><span class="num">1</span> Splash</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>🔋 📶</span></div>
+    <div class="splash">
+      <div class="ic">🌱</div>
+      <div class="app">ECO-RANGERS</div>
+      <div class="tag">Laporkan · Pantau · Tindaklanjuti</div>
+      <div class="load"></div>
+    </div>
+  </div>
+</div>
+<div class="arrow">→</div>
+
+<!-- 2. LOGIN -->
+<div class="screen">
+  <div class="screen-label"><span class="num">2</span> Login</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>🔋 📶</span></div>
+    <div class="login-hero">
+      <div class="ic">🌱</div>
+      <div class="app">ECO-RANGERS</div>
+      <div class="tag">Masuk untuk mulai melaporkan</div>
+    </div>
+    <div style="padding:0 12px;">
+      <div class="form-label">Email</div>
+      <input class="form-field" value="rifat@mail.com" readonly>
+      <div class="form-label">Password</div>
+      <input class="form-field" type="password" value="••••••••" readonly>
+      <div class="btn btn-solid" style="width:100%;padding:5px;font-size:0.5rem;margin-top:3px;">Masuk</div>
+      <div style="text-align:center;font-size:0.35rem;color:var(--text2);margin-top:6px;">
+        Belum punya akun? <span style="color:var(--green);">Daftar</span>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="arrow">→</div>
+
+<!-- 3. HOME -->
+<div class="screen">
+  <div class="screen-label"><span class="num">3</span> Home</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>🔋 📶</span></div>
+    <div class="app-bar">
+      <div class="brand">🌱 ECO-RANGERS</div>
+      <div class="icons">
+        <span>🔔<i class="badge-dot"></i></span>
+        <span>👤</span>
+      </div>
+    </div>
+    <div class="content">
+      <div class="card card-green">
+        <div style="font-size:0.5rem;font-weight:600;color:var(--green);">Selamat Datang, Rif 👋</div>
+        <div style="font-size:0.35rem;color:var(--text2);margin-top:2px;">Ada <strong style="color:var(--yellow);">3 laporan</strong> butuh tindak lanjut</div>
+      </div>
+      <div class="section">Statistik Laporan</div>
+      <div class="stat-row">
+        <div class="stat"><div class="val">12</div><div class="lbl">Total</div></div>
+        <div class="stat"><div class="val y">5</div><div class="lbl">Pending</div></div>
+        <div class="stat"><div class="val b">4</div><div class="lbl">Diproses</div></div>
+        <div class="stat"><div class="val" style="color:var(--green);">3</div><div class="lbl">Selesai</div></div>
+      </div>
+      <div style="margin-top:6px;">
+        <div class="btn btn-solid" style="width:100%;text-align:center;padding:4px;font-size:0.45rem;">+ Buat Laporan Baru</div>
+      </div>
+    </div>
+    <div class="bottom-bar">
+      <div class="item active"><span class="ic">🏠</span>Home</div>
+      <div class="item"><span class="ic">🗺️</span>Peta</div>
+      <div class="item"><span class="ic">➕</span>Lapor</div>
+      <div class="item"><span class="ic">🔔</span>Notif</div>
+      <div class="item"><span class="ic">👤</span>Profil</div>
+    </div>
+  </div>
+</div>
+<div class="arrow">→</div>
+
+<!-- 4. MAP -->
+<div class="screen">
+  <div class="screen-label"><span class="num">4</span> Peta Laporan</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>🔋 📶</span></div>
+    <div class="app-bar">
+      <div class="brand">🗺️ Peta Laporan</div>
+      <div class="icons"><span>🔍</span><span>⚙️</span></div>
+    </div>
+    <div class="content">
+      <div class="chips">
+        <div class="chip on">Semua</div>
+        <div class="chip">Sampah</div>
+        <div class="chip">Pencemaran</div>
+        <div class="chip">Infrastruktur</div>
+        <div class="chip">Fauna</div>
+      </div>
+      <div class="map-box">
+        <div class="dot g" style="top:20px;left:25px;"></div>
+        <div class="dot y" style="top:35px;left:55px;"></div>
+        <div class="dot r" style="top:28px;left:90px;"></div>
+        <div class="dot b" style="top:50px;left:42px;"></div>
+        <div class="dot g" style="top:42px;left:78px;"></div>
+        <div class="lbl">📍 Jakarta · 12 laporan terdeteksi</div>
+      </div>
+      <div class="card" style="padding:4px;">
+        <div class="list-item">
+          <div class="av">🗑️</div>
+          <div class="body"><div class="t">Sampah Menumpuk</div><div class="s">2 jam lalu · 500m</div></div>
+          <div class="badge b-pending">Pending</div>
+        </div>
+        <div class="list-item">
+          <div class="av">🏭</div>
+          <div class="body"><div class="t">Pencemaran Sungai</div><div class="s">5 jam lalu · 1.2km</div></div>
+          <div class="badge b-proses">Diproses</div>
+        </div>
+        <div class="list-item">
+          <div class="av">🛣️</div>
+          <div class="body"><div class="t">Jalan Rusak</div><div class="s">1 hari lalu · 800m</div></div>
+          <div class="badge b-selesai">Selesai</div>
+        </div>
+      </div>
+    </div>
+    <div class="bottom-bar">
+      <div class="item"><span class="ic">🏠</span>Home</div>
+      <div class="item active"><span class="ic">🗺️</span>Peta</div>
+      <div class="item"><span class="ic">➕</span>Lapor</div>
+      <div class="item"><span class="ic">🔔</span>Notif</div>
+      <div class="item"><span class="ic">👤</span>Profil</div>
+    </div>
+  </div>
+</div>
+<div class="arrow">→</div>
+
+<!-- 5. CREATE REPORT -->
+<div class="screen">
+  <div class="screen-label"><span class="num">5</span> Buat Laporan</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>🔋 📶</span></div>
+    <div class="app-bar">
+      <div class="brand">➕ Buat Laporan</div>
+      <div class="icons"><span style="font-size:0.55rem;">✕</span></div>
+    </div>
+    <div class="content">
+      <div class="upload-area">📷 Ambil foto / pilih dari galeri</div>
+      <div class="form-label">Judul Laporan</div>
+      <input class="form-field" placeholder="Contoh: Sampah menumpuk di jalan">
+      <div class="form-label">Kategori</div>
+      <input class="form-field" value="🗑️ Sampah" readonly>
+      <div class="form-label">Lokasi</div>
+      <input class="form-field" value="📍 Jl. Margonda Raya, Depok" readonly>
+      <div class="form-label">Deskripsi</div>
+      <textarea class="form-field form-ta" placeholder="Jelaskan kondisi yang kamu lihat..."></textarea>
+      <div class="btn btn-solid" style="width:100%;text-align:center;padding:5px;font-size:0.5rem;">Kirim Laporan</div>
+    </div>
+  </div>
+</div>
+<div class="arrow">→</div>
+
+<!-- 6. REPORT LIST -->
+<div class="screen">
+  <div class="screen-label"><span class="num">6</span> Daftar Laporan</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>🔋 📶</span></div>
+    <div class="app-bar">
+      <div class="brand">📋 Daftar Laporan</div>
+      <div class="icons"><span>🔍</span><span>⚙️</span></div>
+    </div>
+    <div class="content">
+      <div class="chips">
+        <div class="chip on">Semua</div>
+        <div class="chip">Pending</div>
+        <div class="chip">Diproses</div>
+        <div class="chip">Selesai</div>
+        <div class="chip">Ditolak</div>
+      </div>
+      <div class="card" style="padding:4px;">
+        <div class="list-item">
+          <div class="av">🗑️</div>
+          <div class="body"><div class="t">Sampah Menumpuk</div><div class="s">2 jam · 👍 12</div></div>
+          <div class="badge b-pending">Pending</div>
+        </div>
+        <div class="list-item">
+          <div class="av">🏭</div>
+          <div class="body"><div class="t">Pencemaran Sungai</div><div class="s">5 jam · 👍 8</div></div>
+          <div class="badge b-proses">Diproses</div>
+        </div>
+        <div class="list-item">
+          <div class="av">🛣️</div>
+          <div class="body"><div class="t">Jalan Rusak</div><div class="s">1 hari · 👍 23</div></div>
+          <div class="badge b-selesai">Selesai</div>
+        </div>
+        <div class="list-item">
+          <div class="av">🐦</div>
+          <div class="body"><div class="t">Burung Terancam</div><div class="s">2 hari · 👍 5</div></div>
+          <div class="badge b-ditolak">Ditolak</div>
+        </div>
+        <div class="list-item">
+          <div class="av">🌿</div>
+          <div class="body"><div class="t">Pohon Tumbang</div><div class="s">3 hari · 👍 17</div></div>
+          <div class="badge b-pending">Pending</div>
+        </div>
+      </div>
+    </div>
+    <div class="bottom-bar">
+      <div class="item"><span class="ic">🏠</span>Home</div>
+      <div class="item"><span class="ic">🗺️</span>Peta</div>
+      <div class="item"><span class="ic">➕</span>Lapor</div>
+      <div class="item"><span class="ic">🔔</span>Notif</div>
+      <div class="item"><span class="ic">👤</span>Profil</div>
+    </div>
+  </div>
+</div>
+<div class="arrow">→</div>
+
+<!-- 7. DETAIL -->
+<div class="screen">
+  <div class="screen-label"><span class="num">7</span> Detail Laporan</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>🔋 📶</span></div>
+    <div class="app-bar">
+      <div class="brand">📄 Detail Laporan</div>
+      <div class="icons"><span>⋮</span></div>
+    </div>
+    <div class="content">
+      <div class="detail-top">
+        <div class="detail-img">🗑️</div>
+        <div class="detail-info">
+          <div class="n">Sampah Menumpuk di Jalan</div>
+          <div class="m">📅 30 Agt 2026 · 📍 Margonda Raya</div>
+          <div style="margin-top:2px;"><span class="badge b-pending">Pending</span></div>
+        </div>
+      </div>
+      <div class="section">Deskripsi</div>
+      <div class="card" style="padding:5px;">
+        <div style="font-size:0.35rem;color:var(--text2);">Sampah rumah tangga menumpuk di pinggir jalan sejak 3 hari. Mulai bau dan menarik serangga.</div>
+      </div>
+      <div class="section">Riwayat Status</div>
+      <div class="timeline">
+        <div class="tl-item">
+          <div class="tm">30 Agt, 08:00</div>
+          <div class="tx">Laporan diterima — <span style="color:var(--yellow);">Pending</span></div>
+        </div>
+        <div class="tl-item">
+          <div class="tm">30 Agt, 10:30</div>
+          <div class="tx">Admin meninjau lokasi</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:3px;margin-top:6px;">
+        <div class="btn btn-solid btn-sm">👍 Upvote (12)</div>
+        <div class="btn btn-ghost btn-sm">💬 Komentar</div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="arrow">→</div>
+
+<!-- 8. NOTIFICATION -->
+<div class="screen">
+  <div class="screen-label"><span class="num">8</span> Notifikasi</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>🔋 📶</span></div>
+    <div class="app-bar">
+      <div class="brand">🔔 Notifikasi</div>
+      <div class="icons"><span style="font-size:0.45rem;">✓ Tandai dibaca</span></div>
+    </div>
+    <div class="content">
+      <div class="section">Hari ini</div>
+      <div class="card card-green" style="padding:4px;display:flex;align-items:flex-start;">
+        <div class="notif-accent green" style="height:22px;"></div>
+        <div class="list-item" style="padding:0;">
+          <div class="av">✅</div>
+          <div class="body"><div class="t">Laporan Selesai!</div><div class="s">"Pohon Tumbang" sudah ditindaklanjuti</div></div>
+          <div style="font-size:0.3rem;color:var(--text2);">2j</div>
+        </div>
+      </div>
+      <div class="card card-blue" style="padding:4px;display:flex;align-items:flex-start;">
+        <div class="notif-accent blue" style="height:22px;"></div>
+        <div class="list-item" style="padding:0;">
+          <div class="av">🔄</div>
+          <div class="body"><div class="t">Status Diperbarui</div><div class="s">"Pencemaran Sungai" sekarang Diproses</div></div>
+          <div style="font-size:0.3rem;color:var(--text2);">5j</div>
+        </div>
+      </div>
+      <div class="section">Kemarin</div>
+      <div class="card" style="padding:4px;">
+        <div class="list-item">
+          <div class="av">📝</div>
+          <div class="body"><div class="t">Laporan Diterima</div><div class="s">"Sampah Menumpuk" terkirim</div></div>
+          <div style="font-size:0.3rem;color:var(--text2);">1h</div>
+        </div>
+      </div>
+    </div>
+    <div class="bottom-bar">
+      <div class="item"><span class="ic">🏠</span>Home</div>
+      <div class="item"><span class="ic">🗺️</span>Peta</div>
+      <div class="item"><span class="ic">➕</span>Lapor</div>
+      <div class="item active"><span class="ic">🔔</span>Notif</div>
+      <div class="item"><span class="ic">👤</span>Profil</div>
+    </div>
+  </div>
+</div>
+<div class="arrow">→</div>
+
+<!-- 9. PROFILE -->
+<div class="screen">
+  <div class="screen-label"><span class="num">9</span> Profil</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>🔋 📶</span></div>
+    <div class="app-bar">
+      <div class="brand">👤 Profil</div>
+      <div class="icons"><span>⚙️</span></div>
+    </div>
+    <div class="content">
+      <div class="profile">
+        <div class="avatar">👨‍💻</div>
+        <div class="name">Rifat Dhiya</div>
+        <div class="mail">rifatdhiyaullail@gmail.com</div>
+      </div>
+      <div class="card" style="padding:5px;">
+        <div class="stat-row">
+          <div class="stat"><div class="val">12</div><div class="lbl">Laporan</div></div>
+          <div class="stat"><div class="val">34</div><div class="lbl">Upvote Diterima</div></div>
+        </div>
+      </div>
+      <div class="section">Pengaturan</div>
+      <div class="card" style="padding:3px 7px;">
+        <div class="toggle-row"><div class="lbl">🌙 Dark Mode</div><div class="toggle"></div></div>
+        <div class="toggle-row"><div class="lbl">🔔 Notifikasi Push</div><div class="toggle"></div></div>
+        <div class="toggle-row"><div class="lbl">📍 GPS Otomatis</div><div class="toggle off"></div></div>
+        <div class="toggle-row"><div class="lbl">Bahasa</div><span style="font-size:0.35rem;color:var(--text2);">Indonesia ▾</span></div>
+      </div>
+      <div style="margin-top:6px;">
+        <div class="btn btn-ghost" style="width:100%;text-align:center;padding:4px;font-size:0.45rem;">Keluar</div>
+      </div>
+    </div>
+    <div class="bottom-bar">
+      <div class="item"><span class="ic">🏠</span>Home</div>
+      <div class="item"><span class="ic">🗺️</span>Peta</div>
+      <div class="item"><span class="ic">➕</span>Lapor</div>
+      <div class="item"><span class="ic">🔔</span>Notif</div>
+      <div class="item active"><span class="ic">👤</span>Profil</div>
+    </div>
+  </div>
+</div>
+<div class="arrow">→</div>
+
+<!-- 10. ADMIN DASHBOARD -->
+<div class="screen wide">
+  <div class="screen-label"><span class="num">10</span> Admin Dashboard</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>🔋 📶</span></div>
+    <div class="app-bar">
+      <div class="brand">🛡️ Admin Panel</div>
+      <div class="icons"><span>📊</span><span>⚙️</span></div>
+    </div>
+    <div class="content">
+      <div class="stat-row">
+        <div class="stat"><div class="val">156</div><div class="lbl">Total</div></div>
+        <div class="stat"><div class="val y">42</div><div class="lbl">Pending</div></div>
+        <div class="stat"><div class="val b">28</div><div class="lbl">Diproses</div></div>
+        <div class="stat"><div class="val" style="color:var(--green);">86</div><div class="lbl">Selesai</div></div>
+      </div>
+      <div class="section">Tren 7 Hari</div>
+      <div class="chart">
+        <div class="bar" style="height:30%;"></div>
+        <div class="bar" style="height:55%;"></div>
+        <div class="bar" style="height:25%;background:var(--yellow);"></div>
+        <div class="bar" style="height:70%;"></div>
+        <div class="bar" style="height:45%;background:var(--blue);"></div>
+        <div class="bar" style="height:60%;"></div>
+        <div class="bar" style="height:35%;"></div>
+      </div>
+      <div class="section">Distribusi Kategori</div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <div class="donut"></div>
+        <div style="flex:1;font-size:0.35rem;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:2px;"><span>🗑️ Sampah</span><span style="color:var(--text2);">45%</span></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:2px;"><span>🏭 Pencemaran</span><span style="color:var(--text2);">25%</span></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:2px;"><span>🛣️ Infrastruktur</span><span style="color:var(--text2);">20%</span></div>
+          <div style="display:flex;justify-content:space-between;"><span>🌿 Lainnya</span><span style="color:var(--text2);">10%</span></div>
+        </div>
+      </div>
+      <div style="margin-top:6px;">
+        <div class="btn btn-solid btn-sm">📥 Export CSV</div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="arrow">→</div>
+
+<!-- 11. UPDATE STATUS -->
+<div class="screen">
+  <div class="screen-label"><span class="num">11</span> Update Status</div>
+  <div class="phone">
+    <div class="status"><span>9:41</span><span>🔋 📶</span></div>
+    <div class="app-bar">
+      <div class="brand">🔄 Update Status</div>
+      <div class="icons"><span style="font-size:0.55rem;">✕</span></div>
+    </div>
+    <div class="content">
+      <div class="card" style="padding:4px;">
+        <div style="font-size:0.5rem;font-weight:600;">Sampah Menumpuk di Jalan</div>
+        <div style="font-size:0.3rem;color:var(--text2);">ID: #21 · Dilaporkan 2 jam lalu</div>
+      </div>
+      <div class="form-label">Status Baru</div>
+      <input class="form-field" value="🔵 Diproses" readonly>
+      <div class="form-label">Nama Petugas</div>
+      <input class="form-field" placeholder="Masukkan nama petugas">
+      <div class="form-label">Keterangan</div>
+      <textarea class="form-field form-ta" placeholder="Tim sedang menuju lokasi..."></textarea>
+      <div class="upload-area" style="padding:5px;font-size:0.35rem;">📷 Upload foto dokumentasi</div>
+      <div class="btn btn-solid" style="width:100%;text-align:center;padding:5px;font-size:0.5rem;">Update Status</div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<!-- Footer -->
+<div class="footer">
+  <div>
+    <strong style="color:var(--text);">Referensi:</strong> CityFix (Figma · Google UX Cert), FixMyStreet (open source · 612 stars), SeeClickFix (300 cities · B2G model), Citizen (safety alerts · 6M users), Civic Issue Reporting (Behance case study)
+  </div>
+  <div>30 Aug 2026</div>
+</div>
+
+</body>
+</html>

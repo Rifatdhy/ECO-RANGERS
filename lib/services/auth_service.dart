@@ -14,17 +14,35 @@ class AuthService {
   // Client HTTP di-reuse untuk semua request auth (pooling koneksi).
   final http.Client _client = http.Client();
 
-  Future<T> _to<T>(Future<T> f) => f.timeout(const Duration(seconds: 15));
-
   static const _tokenKey = 'token';
   static const _userKey = 'current_user';
+  static const _tokenExpiryKey = 'token_expiry';
+  static const _refreshThreshold = Duration(minutes: 5);
+  
   // Di web tidak ada keystore OS; gunakan SharedPreferences (sama saja
   // dengan localStorage). Di platform native baru benar-benar aman.
-  static const _storage = FlutterSecureStorage();
+  static const _storage = FlutterSecureStorage(
+    aOptions: AndroidOptions(
+      encryptedSharedPreferences: true,
+    ),
+    iOptions: IOSOptions(
+      accessibility: KeychainItemAccessibility.first_unlock_this_device,
+    ),
+  );
   static bool get _useSecureStorage => !kIsWeb;
 
   User? _currentUser;
+  DateTime? _tokenExpiry;
+  
   User? get currentUser => _currentUser;
+
+  /// Check if token is expired or about to expire
+  bool get isTokenExpired {
+    if (_tokenExpiry == null) return true;
+    return DateTime.now().isAfter(_tokenExpiry!.subtract(_refreshThreshold));
+  }
+
+  Future<T> _to<T>(Future<T> f) => f.timeout(const Duration(seconds: 15));
 
   // FIX: Mengembalikan implementasi fungsi register
   Future<Map<String, dynamic>> register({
@@ -32,6 +50,10 @@ class AuthService {
     required String email,
     required String password,
   }) async {
+    if (username.trim().length < 3) throw Exception('Username minimal 3 karakter');
+    if (!_isValidEmail(email)) throw Exception('Format email tidak valid');
+    if (password.length < 8) throw Exception('Password minimal 8 karakter');
+
     final res = await _to(_client.post(
       api('/api/register'),
       headers: {
@@ -39,25 +61,31 @@ class AuthService {
         'Accept': 'application/json',
       },
       body: jsonEncode({
+        'name': username,
         'username': username,
         'email': email,
         'password': password,
+        'password_confirmation': password,
       }),
     ));
     final data = _decode(res.body);
     if (res.statusCode >= 200 && res.statusCode < 300) {
       await _writeToken(data['token'] ?? '');
       await _writeUser(data['user']);
+      await _writeTokenExpiry();
       _currentUser = User.fromJson(data['user']);
       return data;
     }
-    throw Exception(data['message'] ?? 'Register gagal');
+    throw Exception(data['message'] ?? 'Registrasi gagal');
   }
 
   Future<User> login({
     required String email,
     required String password,
   }) async {
+    if (!_isValidEmail(email)) throw Exception('Format email tidak valid');
+    if (password.isEmpty) throw Exception('Password tidak boleh kosong');
+
     final res = await _to(_client.post(
       api('/api/login'),
       headers: {
@@ -70,10 +98,77 @@ class AuthService {
     if (res.statusCode >= 200 && res.statusCode < 300) {
       await _writeToken(data['token'] ?? '');
       await _writeUser(data['user']);
+      await _writeTokenExpiry();
       _currentUser = User.fromJson(data['user']);
       return _currentUser!;
     }
-    throw Exception(data['message'] ?? 'Login gagal');
+    throw Exception(data['message'] ?? 'Login gagal — periksa email dan password');
+  }
+
+  /// Ensure token is valid before API call - auto-refresh if needed
+  Future<void> ensureTokenValid() async {
+    if (isTokenExpired) {
+      await _refreshTokenIfNeeded();
+    }
+  }
+
+  /// Refresh token from server
+  Future<void> _refreshTokenIfNeeded() async {
+    final t = await getToken();
+    if (t == null) return;
+
+    try {
+      final res = await _client.post(
+        api('/api/token/refresh'),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $t',
+        },
+      ).timeout(const Duration(seconds: 5));
+
+      if (res.statusCode == 200) {
+        final data = _decode(res.body);
+        if (data['token'] != null) {
+          await _writeToken(data['token']);
+          await _writeTokenExpiry();
+        }
+      }
+    } catch (_) {
+      // Refresh failed — logout user gracefully
+      await logout();
+    }
+  }
+
+  bool _isValidEmail(String email) {
+    return RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(email.trim());
+  }
+
+  Future<void> _writeTokenExpiry() async {
+    // Default 7 hari dari sekarang (sesuai Sanctum default)
+    final expiry = DateTime.now().add(const Duration(days: 7));
+    _tokenExpiry = expiry;
+    if (!_useSecureStorage) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_tokenExpiryKey, expiry.millisecondsSinceEpoch);
+    } else {
+      try {
+        await _storage.write(key: _tokenExpiryKey, value: expiry.millisecondsSinceEpoch.toString());
+      } catch (_) {}
+    }
+  }
+
+  Future<DateTime?> _readTokenExpiry() async {
+    if (!_useSecureStorage) {
+      final prefs = await SharedPreferences.getInstance();
+      final ms = prefs.getInt(_tokenExpiryKey);
+      return ms != null ? DateTime.fromMillisecondsSinceEpoch(ms) : null;
+    }
+    try {
+      final val = await _storage.read(key: _tokenExpiryKey);
+      return val != null ? DateTime.fromMillisecondsSinceEpoch(int.parse(val)) : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<User?> getMe() async {
