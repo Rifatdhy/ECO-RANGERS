@@ -16,15 +16,14 @@ class AuthController extends Controller
             'password' => 'required|string|min:8',
         ]);
 
-        $user = User::create([
-            'username' => $validatedData['username'],
-            'name' => $validatedData['username'],
-            'email' => $validatedData['email'],
-            'password' => $validatedData['password'],
-            'is_admin' => false, // Pastikan user baru bukan admin
-        ]);
+        $user = new User();
+        $user->username = $validatedData['username'];
+        $user->name = $validatedData['username'];
+        $user->email = $validatedData['email'];
+        $user->password = \Illuminate\Support\Facades\Hash::make($validatedData['password']);
+        $user->is_admin = false;
+        $user->save();
 
-        // DIUBAH: Berikan kemampuan 'role:user' saat membuat token
         $token = $user->createToken('auth_token', ['role:user'])->plainTextToken;
 
         return response()->json([
@@ -41,11 +40,11 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
-        if (!Auth::attempt($credentials)) {
+        $user = User::where('email', $credentials['email'])->first();
+
+        if (!$user || !\Illuminate\Support\Facades\Hash::check($credentials['password'], $user->password)) {
             return response()->json(['message' => 'Email atau password salah'], 401);
         }
-
-        $user = Auth::user();
 
         // Hapus token lama & buat token baru dengan kemampuan yang sesuai
         $user->tokens()->delete();

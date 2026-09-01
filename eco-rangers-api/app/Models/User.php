@@ -19,7 +19,6 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
-            'password' => 'hashed', // biar password otomatis di-hash saat disimpan
             'is_admin' => 'boolean',
         ];
     }

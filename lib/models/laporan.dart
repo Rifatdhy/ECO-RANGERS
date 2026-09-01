@@ -36,8 +36,8 @@ class Laporan {
     this.voteCount = 0,
     this.votedByMe = false,
     required this.createdAt,
-    this.updates = const [], // Default ke list kosong
-    this.user, // Tambahkan di konstruktor
+    this.updates = const [],
+    this.user,
   });
 
   String get lokasi {
@@ -50,7 +50,6 @@ class Laporan {
   factory Laporan.fromJson(Map<String, dynamic> json) {
     final fotoPath = json['foto_path'] as String?;
     
-    // Parsing list `updates` dari JSON
     var updatesList = <ReportUpdate>[];
     if (json['updates'] != null) {
       updatesList = (json['updates'] as List)
@@ -58,7 +57,6 @@ class Laporan {
           .toList();
     }
     
-    // Parsing data `user` dari JSON
     final userJson = json['user'];
     final User? user = userJson != null ? User.fromJson(userJson as Map<String, dynamic>) : null;
 
@@ -74,7 +72,7 @@ class Laporan {
       fotoUrl: fotoPath != null ? imageUrlFrom({'foto_path': fotoPath}) : null,
       status: json['status'] as String? ?? 'pending',
       konfirmasiUser: json['konfirmasi_user'] as String?,
-      voteCount: (json['vote_count'] as num?)?.toInt() ?? 0,
+      voteCount: (json['vote_count'] as num?)?.toInt() ?? (json['votes'] as num?)?.toInt() ?? 0,
       votedByMe: json['voted_by_me'] == true,
       createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ?? DateTime.now(),
       updates: updatesList,
@@ -101,11 +99,12 @@ class Laporan {
         status: status ?? this.status,
         konfirmasiUser: konfirmasiUser ?? this.konfirmasiUser,
         voteCount: voteCount ?? this.voteCount,
-        votedByMe: votedByMe ?? false,
+        votedByMe: votedByMe ?? this.votedByMe, // Preserved bug fix
         createdAt: createdAt,
         updates: updates,
         user: user,
       );
+
   String get createdAtLabel {
     final d = createdAt;
     final day = d.day.toString().padLeft(2, '0');

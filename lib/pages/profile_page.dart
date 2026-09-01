@@ -1,63 +1,65 @@
 import 'package:flutter/material.dart';
-
 import '../locator.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
 import '../ui/tokens.dart';
-import '../ui/widgets/section_header.dart';
-import '../ui/widgets/state_views.dart';
 import 'auth_page.dart';
 
+/// ProfilePage bergaya Apple ID Profile Settings:
+/// Avatar botani elegan, kartu profil minimalis, dan opsi logout cepat.
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
   @override
-  State<ProfilePage> createState() => ProfilePageState();
+  State<ProfilePage> createState() => _ProfilePageState();
 }
 
-class ProfilePageState extends State<ProfilePage> {
+class _ProfilePageState extends State<ProfilePage> {
+  final AuthService _authService = locator<AuthService>();
   User? _user;
-  bool _loading = true;
-  String? _error;
-  int _reqSeq = 0;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    _loadUser();
   }
 
-  void refresh({bool silent = false}) => _load(silent: silent);
-
-  String _initial(String? a, String? b) =>
-      ((a != null && a.isNotEmpty) ? a : (b ?? 'R')).substring(0, 1).toUpperCase();
-
-  Future<void> _load({bool silent = false}) async {
-    final seq = ++_reqSeq;
-    if (!mounted) return;
-    if (!silent || _user == null) {
+  Future<void> _loadUser() async {
+    setState(() => _isLoading = true);
+    final user = await _authService.getMe();
+    if (mounted) {
       setState(() {
-        _loading = true;
-        _error = null;
+        _user = user;
+        _isLoading = false;
       });
-    }
-    try {
-      _user = await locator<AuthService>().getMe();
-      if (seq != _reqSeq || !mounted) return;
-      setState(() {});
-    } catch (e) {
-      if (seq != _reqSeq || !mounted) return;
-      setState(() => _error = e.toString());
-    } finally {
-      if (seq == _reqSeq && mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _logout() async {
-    await locator<AuthService>().logout();
-    if (mounted) {
-      Navigator.pushAndRemoveUntil(
-        context,
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Keluar dari Akun?'),
+        content: const Text('Anda perlu masuk kembali untuk mengirim dan memantau laporan.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Keluar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      await _authService.logout();
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const AuthPage()),
         (route) => false,
       );
@@ -66,165 +68,131 @@ class ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final user = _user;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        bottom: false,
-        child: RefreshIndicator(
-          onRefresh: _load,
-          child: CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            slivers: [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.sm),
-                  child: SectionHeader(title: 'Profil Saya'),
-                ),
-              ),
-              if (_loading)
-                const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.all(AppSpacing.lg),
-                    child: Column(children: [
-                      SkeletonReportCard(),
-                      SizedBox(height: AppSpacing.sm),
-                      SkeletonReportCard(),
-                      SizedBox(height: AppSpacing.sm),
-                      SkeletonReportCard(),
-                    ]),
-                  ),
-                )
-              else if (_error != null)
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: ErrorRetry(message: _error ?? 'Terjadi kesalahan', onRetry: _load),
-                )
-              else
-                ..._buildProfileSlivers(theme, user),
-            ],
-          ),
-        ),
+      appBar: AppBar(
+        title: const Text('Profil Pengguna'),
       ),
-    );
-  }
-
-  List<Widget> _buildProfileSlivers(ThemeData theme, User? user) => [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-            child: Container(
-              padding: const EdgeInsets.all(AppSpacing.xl),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF2E7D32), Color(0xFF43A047)],
-                ),
-                borderRadius: BorderRadius.circular(28),
-              ),
-              child: Row(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: AppColors.forest))
+          : SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 32,
-                    backgroundColor: Colors.white.withValues(alpha: 0.2),
-                    child: Text(
-                      _initial(user?.name, user?.username),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 26,
+                  // User Avatar Header
+                  Center(
+                    child: Container(
+                      width: 84,
+                      height: 84,
+                      decoration: BoxDecoration(
+                        gradient: AppColors.luxuryBrandGradient,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.forest.withValues(alpha: 0.25),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.person_rounded, color: Colors.white, size: 44),
                       ),
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
+                  const SizedBox(height: 14),
+                  Text(
+                    _user?.name.isNotEmpty == true ? _user!.name : (_user?.username ?? 'Warga Peduli'),
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _user?.email ?? '',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isDark ? AppColors.darkMutedTextColor : AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1B3D2B) : AppColors.mintGlow,
+                      borderRadius: BorderRadius.circular(AppRadius.full),
+                    ),
+                    child: Text(
+                      _user?.isAdmin == true ? 'ROLE: ADMIN' : 'ROLE: WARGA',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.0,
+                        color: isDark ? const Color(0xFF52B788) : AppColors.emerald,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+
+                  // Info Settings Card
+                  Container(
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF14201A) : AppColors.surface,
+                      borderRadius: BorderRadius.circular(AppRadius.xl),
+                      border: Border.all(
+                        color: isDark ? Colors.white.withValues(alpha: 0.08) : AppColors.line,
+                      ),
+                      boxShadow: AppShadows.luxuryCard,
+                    ),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          user?.name ?? user?.username ?? 'Rangers',
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                          ),
+                        _tileItem(
+                          icon: Icons.shield_outlined,
+                          title: 'Privasi & Autentikasi',
+                          subtitle: 'Token aman via Laravel Sanctum',
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          user?.email ?? '-',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: Colors.white.withValues(alpha: 0.85),
-                          ),
+                        Divider(height: 1, color: isDark ? Colors.white.withValues(alpha: 0.06) : AppColors.lineLight),
+                        _tileItem(
+                          icon: Icons.notifications_none_rounded,
+                          title: 'Notifikasi In-App',
+                          subtitle: 'Baseline status updates',
                         ),
-                        const SizedBox(height: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.16),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            user?.isAdmin == true ? 'Administrator' : 'Ranger Komunitas',
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
+                        Divider(height: 1, color: isDark ? Colors.white.withValues(alpha: 0.06) : AppColors.lineLight),
+                        _tileItem(
+                          icon: Icons.info_outline_rounded,
+                          title: 'Tentang Aplikasi',
+                          subtitle: 'Eco Rangers Civic Tech v1.0.0',
                         ),
                       ],
                     ),
                   ),
+                  const SizedBox(height: 24),
+
+                  // Logout Action
+                  OutlinedButton.icon(
+                    onPressed: _logout,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                      side: const BorderSide(color: AppColors.error),
+                      minimumSize: const Size(double.infinity, 50),
+                    ),
+                    icon: const Icon(Icons.logout_rounded, size: 18),
+                    label: const Text('Keluar dari Akun'),
+                  ),
+                  const SizedBox(height: 80),
                 ],
               ),
             ),
-          ),
-        ),
-        const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-            child: Card(
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.badge_outlined, color: AppColors.primary),
-                    title: const Text('Username'),
-                    subtitle: Text(user?.username ?? '-'),
-                  ),
-                  const Divider(),
-                  ListTile(
-                    leading: const Icon(Icons.email_outlined, color: AppColors.primary),
-                    title: const Text('Email'),
-                    subtitle: Text(user?.email ?? '-'),
-                  ),
-                  const Divider(),
-                  ListTile(
-                    leading: const Icon(Icons.verified_user_outlined, color: AppColors.primary),
-                    title: const Text('Peran'),
-                    subtitle: Text(user?.isAdmin == true ? 'Administrator' : 'Pengguna'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-            child: OutlinedButton.icon(
-              onPressed: _logout,
-              icon: const Icon(Icons.logout_rounded),
-              label: const Text('Keluar'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.error,
-                side: BorderSide(color: AppColors.error.withValues(alpha: 0.5)),
-              ),
-            ),
-          ),
-        ),
-        const SliverToBoxAdapter(child: SizedBox(height: 24)),
-      ];
+    );
+  }
+
+  Widget _tileItem({required IconData icon, required String title, required String subtitle}) {
+    return ListTile(
+      leading: Icon(icon, color: AppColors.sage, size: 22),
+      title: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+      dense: true,
+    );
+  }
 }

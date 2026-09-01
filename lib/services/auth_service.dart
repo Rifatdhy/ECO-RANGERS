@@ -25,9 +25,6 @@ class AuthService {
     aOptions: AndroidOptions(
       encryptedSharedPreferences: true,
     ),
-    iOptions: IOSOptions(
-      accessibility: KeychainItemAccessibility.first_unlock_this_device,
-    ),
   );
   static bool get _useSecureStorage => !kIsWeb;
 
@@ -157,20 +154,6 @@ class AuthService {
     }
   }
 
-  Future<DateTime?> _readTokenExpiry() async {
-    if (!_useSecureStorage) {
-      final prefs = await SharedPreferences.getInstance();
-      final ms = prefs.getInt(_tokenExpiryKey);
-      return ms != null ? DateTime.fromMillisecondsSinceEpoch(ms) : null;
-    }
-    try {
-      final val = await _storage.read(key: _tokenExpiryKey);
-      return val != null ? DateTime.fromMillisecondsSinceEpoch(int.parse(val)) : null;
-    } catch (_) {
-      return null;
-    }
-  }
-
   Future<User?> getMe() async {
     final t = await getToken();
     if (t == null) return null;
@@ -221,11 +204,10 @@ class AuthService {
       try {
         return await _storage.read(key: _tokenKey);
       } catch (_) {
-        return null; // penyimpanan aman tidak tersedia → perlakukan sebagai belum login
+        return null;
       }
     }
-    final prefs = await SharedPreferences.getInstance().catchError((_) => null);
-    if (prefs == null) return null;
+    final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_tokenKey);
   }
 
@@ -234,13 +216,10 @@ class AuthService {
     if (_useSecureStorage) {
       try {
         await _storage.write(key: _userKey, value: value);
-      } catch (_) {
-        // abaikan
-      }
+      } catch (_) {}
       return;
     }
-    final prefs = await SharedPreferences.getInstance().catchError((_) => null);
-    if (prefs == null) return;
+    final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_userKey, value);
   }
 

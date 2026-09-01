@@ -1,181 +1,138 @@
 import 'package:flutter/material.dart';
-
 import '../tokens.dart';
 
-class EmptyState extends StatelessWidget {
-  const EmptyState({
+class EmptyStateView extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String description;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  const EmptyStateView({
     super.key,
     required this.icon,
     required this.title,
-    this.subtitle,
-    this.action,
-    this.compact = false,
+    required this.description,
+    this.actionLabel,
+    this.onAction,
   });
-
-  final IconData icon;
-  final String title;
-  final String? subtitle;
-  final Widget? action;
-  final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: AppSpacing.xl,
-        vertical: compact ? AppSpacing.xl : AppSpacing.huge,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: compact ? 56 : 80,
-            height: compact ? 56 : 80,
-            decoration: BoxDecoration(
-              color: AppColors.accent.withValues(alpha: 0.16),
-              shape: BoxShape.circle,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF192821) : AppColors.backgroundSecondary,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isDark ? Colors.white.withValues(alpha: 0.08) : AppColors.line,
+                ),
+              ),
+              child: Icon(
+                icon,
+                size: 32,
+                color: isDark ? const Color(0xFF52B788) : AppColors.forest,
+              ),
             ),
-            child: Icon(
-              icon,
-              size: compact ? 26 : 36,
-              color: AppColors.primary,
-            ),
-          ),
-          SizedBox(height: compact ? AppSpacing.md : AppSpacing.xl),
-          Text(
-            title,
-            style: theme.textTheme.titleMedium,
-            textAlign: TextAlign.center,
-          ),
-          if (subtitle != null) ...[
-            const SizedBox(height: AppSpacing.xs),
+            const SizedBox(height: 18),
             Text(
-              subtitle!,
-              style: theme.textTheme.bodyMedium,
+              title,
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: isDark ? Colors.white : AppColors.ink,
+                letterSpacing: -0.3,
+              ),
               textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 6),
+            Text(
+              description,
+              style: TextStyle(
+                fontSize: 13.5,
+                color: isDark ? AppColors.darkMutedTextColor : AppColors.textSecondary,
+                height: 1.4,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: onAction,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  minimumSize: const Size(140, 44),
+                ),
+                child: Text(actionLabel!),
+              ),
+            ],
           ],
-          if (action != null) ...[
-            const SizedBox(height: AppSpacing.xl),
-            action!,
-          ],
-        ],
+        ),
       ),
     );
   }
 }
 
-class ErrorRetry extends StatelessWidget {
-  const ErrorRetry({
+class ErrorStateView extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const ErrorStateView({
     super.key,
     required this.message,
     required this.onRetry,
-    this.compact = false,
   });
 
-  final String message;
-  final VoidCallback onRetry;
-  final bool compact;
-
   @override
   Widget build(BuildContext context) {
-    return EmptyState(
-      icon: Icons.cloud_off_rounded,
-      title: 'Gagal memuat data',
-      subtitle: message,
-      compact: compact,
-      action: FilledButton.icon(
-        onPressed: onRetry,
-        icon: const Icon(Icons.refresh_rounded),
-        label: const Text('Coba lagi'),
-        style: FilledButton.styleFrom(
-          minimumSize: const Size(0, 48),
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-        ),
-      ),
-    );
-  }
-}
-
-class SkeletonBox extends StatefulWidget {
-  const SkeletonBox({super.key, this.width = double.infinity, this.height = 16, this.radius = AppRadius.md});
-
-  final double width;
-  final double height;
-  final double radius;
-
-  @override
-  State<SkeletonBox> createState() => _SkeletonBoxState();
-}
-
-class _SkeletonBoxState extends State<SkeletonBox> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 900),
-    lowerBound: 0.45,
-    upperBound: 1.0,
-  )..repeat(reverse: true);
-
-  @override
-  void initState() {
-    super.initState();
-    if (MediaQuery.of(context).disableAnimations) _controller.stop();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return FadeTransition(
-      opacity: _controller,
-      child: Container(
-        width: widget.width,
-        height: widget.height,
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
-          borderRadius: BorderRadius.circular(widget.radius),
-        ),
-      ),
-    );
-  }
-}
-
-class SkeletonReportCard extends StatelessWidget {
-  const SkeletonReportCard({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-        boxShadow: AppShadows.card,
-      ),
-      child: const Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SkeletonBox(width: 72, height: 72, radius: AppRadius.lg),
-          SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SkeletonBox(width: 48, height: 20, radius: 999),
-                SizedBox(height: AppSpacing.sm),
-                SkeletonBox(height: 16),
-                SizedBox(height: AppSpacing.xs),
-                SkeletonBox(width: 160, height: 14),
-              ],
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: AppColors.ditolakBg,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.ditolakBorder),
+              ),
+              child: const Icon(
+                Icons.error_outline_rounded,
+                size: 32,
+                color: AppColors.ditolakText,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 16),
+            const Text(
+              'Gagal Memuat Data',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              message,
+              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 18),
+            OutlinedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded, size: 16),
+              label: const Text('Coba Lagi'),
+            ),
+          ],
+        ),
       ),
     );
   }

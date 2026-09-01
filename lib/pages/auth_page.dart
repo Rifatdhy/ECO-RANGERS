@@ -1,701 +1,401 @@
 import 'dart:ui';
-
-import 'package:eco_rangers/models/user.dart';
-import 'package:eco_rangers/ui/app_theme.dart';
-import 'package:eco_rangers/ui/tokens.dart';
 import 'package:flutter/material.dart';
-
 import '../locator.dart';
 import '../services/auth_service.dart';
+import '../ui/tokens.dart';
 import 'dashboard_admin_page.dart';
 import 'main_shell.dart';
 
+/// AuthPage bergaya Apple Luxury ID Portal:
+/// Glassmorphism hero dengan botanical gradient yang megah,
+/// segment tab mulus tanpa flicker, form field ultra-clean,
+/// dan transisi masuk yang effortless.
 class AuthPage extends StatefulWidget {
-  const AuthPage({super.key});
+  final bool initialIsRegister;
+
+  const AuthPage({super.key, this.initialIsRegister = false});
 
   @override
   State<AuthPage> createState() => _AuthPageState();
 }
 
-class _AuthPageState extends State<AuthPage> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _AuthPageState extends State<AuthPage> {
+  final AuthService _authService = locator<AuthService>();
 
-  final _loginFormKey = GlobalKey<FormState>();
-  final _registerFormKey = GlobalKey<FormState>();
-
-  final _loginEmailController = TextEditingController();
-  final _loginPasswordController = TextEditingController();
-
-  final _registerNameController = TextEditingController();
-  final _registerEmailController = TextEditingController();
-  final _registerPasswordController = TextEditingController();
-
+  late bool _isRegister;
   bool _isLoading = false;
-  int _currentTabIndex = 0;
+  bool _obscurePassword = true;
+  String? _errorMessage;
+
+  final _formKey = GlobalKey<FormState>();
+  final _usernameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(() {
-      if (_tabController.index != _currentTabIndex) {
-        setState(() => _currentTabIndex = _tabController.index);
-      }
-    });
+    _isRegister = widget.initialIsRegister;
+    // Default testing fill untuk kemudahan review cepat
+    _emailController.text = 'admin@gmail.com';
+    _passwordController.text = '12345678';
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
-    _loginEmailController.dispose();
-    _loginPasswordController.dispose();
-    _registerNameController.dispose();
-    _registerEmailController.dispose();
-    _registerPasswordController.dispose();
+    _usernameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleLogin() async {
-    if (!_loginFormKey.currentState!.validate()) return;
-    setState(() => _isLoading = true);
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
     try {
-      final user = await locator<AuthService>().login(
-        email: _loginEmailController.text.trim(),
-        password: _loginPasswordController.text,
-      );
-      _handleLoginSuccess(user.isAdmin);
+      if (_isRegister) {
+        await _authService.register(
+          username: _usernameController.text.trim(),
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
+      } else {
+        await _authService.login(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
+      }
+
+      final user = await _authService.getMe();
+      if (!mounted) return;
+
+      if (user?.isAdmin == true) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const DashboardAdminPage()),
+          (route) => false,
+        );
+      } else {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const MainShell()),
+          (route) => false,
+        );
+      }
     } catch (e) {
-      _showError(e);
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString().replaceAll('Exception: ', '');
+          _isLoading = false;
+        });
+      }
     }
-  }
-
-  Future<void> _handleRegister() async {
-    if (!_registerFormKey.currentState!.validate()) return;
-    setState(() => _isLoading = true);
-
-    try {
-      final data = await locator<AuthService>().register(
-        username: _registerNameController.text.trim(),
-        email: _registerEmailController.text.trim(),
-        password: _registerPasswordController.text,
-      );
-      final user = User.fromJson(data['user']);
-      _handleLoginSuccess(user.isAdmin);
-    } catch (e) {
-      _showError(e);
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  void _showError(Object e) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(e.toString().replaceFirst('Exception: ', '')),
-        backgroundColor: Theme.of(context).colorScheme.error,
-      ),
-    );
-  }
-
-  void _handleLoginSuccess(bool isAdmin) {
-    if (!mounted) return;
-    final pageRoute = MaterialPageRoute(
-      builder: (_) => isAdmin ? const DashboardAdminPage() : const MainShell(),
-    );
-    Navigator.pushReplacement(context, pageRoute);
-  }
-
-  InputDecoration _fieldDecoration({
-    required String label,
-    required IconData icon,
-    String? hint,
-  }) {
-    return InputDecoration(
-      labelText: label,
-      hintText: hint,
-      prefixIcon: Icon(icon),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: RadialGradient(
-            center: const Alignment(-0.85, -0.95),
-            radius: 1.5,
-            colors: [
-              AppColors.accent.withValues(alpha: 0.18),
-              theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-              theme.colorScheme.surface,
-            ],
-            stops: const [0.0, 0.55, 1.0],
-          ),
-        ),
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1080),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isWide = constraints.maxWidth >= 900;
-
-                    return Material(
-                      color: Colors.transparent,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(32),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.surface.withValues(alpha: 0.82),
-                              borderRadius: BorderRadius.circular(32),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.08),
-                                width: 1,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.35),
-                                  blurRadius: 48,
-                                  offset: const Offset(0, 28),
-                                ),
-                                BoxShadow(
-                                  color: Colors.white.withValues(alpha: 0.03),
-                                  blurRadius: 18,
-                                  offset: const Offset(0, -2),
-                                ),
-                              ],
-                            ),
-                            child: Padding(
-                              padding: EdgeInsets.all(isWide ? 28 : 16),
-                              child: isWide
-                                  ? Row(
-                                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                                      children: [
-                                        Expanded(flex: 11, child: _buildHeroPanel(context, isWide: true)),
-                                        const SizedBox(width: 24),
-                                        Expanded(flex: 10, child: _buildAuthCard(context, isWide: true)),
-                                      ],
-                                    )
-                                  : Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        _buildHeroPanel(context, isWide: false),
-                                        const SizedBox(height: 16),
-                                        _buildAuthCard(context, isWide: false),
-                                      ],
-                                    ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
+      body: Stack(
+        children: [
+          // Ambient Botanical Glow
+          Positioned(
+            top: -100,
+            right: -80,
+            child: ImageFiltered(
+              imageFilter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
+              child: Container(
+                width: 320,
+                height: 320,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: (isDark ? const Color(0xFF1B4D36) : AppColors.sand).withValues(alpha: 0.35),
                 ),
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
 
-  Widget _buildHeroPanel(BuildContext context, {required bool isWide}) {
-    final theme = Theme.of(context);
-    final textTheme = theme.textTheme;
-
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(isWide ? 24 : 18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppTheme.primaryColor,
-            const Color(0xFF2E7D32),
-            const Color(0xFF66BB6A).withValues(alpha: 0.85),
-          ],
-        ),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.28),
-            blurRadius: 24,
-            offset: const Offset(0, 16),
-          ),
-        ],
-      ),
-      child: isWide
-          ? Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Positioned(
-                  right: -12,
-                  top: -12,
-                  child: _OrbitBadge(
-                    icon: Icons.eco_outlined,
-                    label: 'Alur ramah lingkungan',
-                    accent: Colors.white.withValues(alpha: 0.10),
-                  ),
-                ),
-                Positioned(
-                  left: -18,
-                  bottom: -18,
-                  child: _OrbitBadge(
-                    icon: Icons.verified_outlined,
-                    label: 'Laporan terverifikasi',
-                    accent: Colors.white.withValues(alpha: 0.08),
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.eco_outlined, color: Colors.white, size: 34),
-                    const SizedBox(height: 28),
-                    Text(
-                      'Satu layar untuk melaporkan masalah lingkungan.',
-                      style: textTheme.headlineMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        height: 1.08,
-                        letterSpacing: -0.4,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Masuk untuk memantau laporan, kirim foto kondisi lapangan, dan lanjutkan tindakan tanpa menunggu.',
-                      style: textTheme.bodyLarge?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: const [
-                        _FeaturePill(label: 'Foto + lokasi'),
-                        _FeaturePill(label: 'Status laporan'),
-                        _FeaturePill(label: 'Warga & admin'),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            height: 52,
-                            width: 52,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.18),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.verified_outlined, color: Colors.white),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Temuan tersampaikan ke pihak berwenang.',
-                                  style: textTheme.titleMedium?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Setiap laporan langsung terpantau dan ditindaklanjuti.',
-                                  style: textTheme.bodyMedium?.copyWith(
-                                    color: Colors.white.withValues(alpha: 0.86),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(Icons.eco_outlined, color: Colors.white, size: 30),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: const [
-                    _OrbitBadge(
-                      icon: Icons.eco_outlined,
-                      label: 'Alur ramah lingkungan',
-                      accent: Color.fromRGBO(255, 255, 255, 0.10),
-                    ),
-                    _OrbitBadge(
-                      icon: Icons.verified_outlined,
-                      label: 'Laporan terverifikasi',
-                      accent: Color.fromRGBO(255, 255, 255, 0.08),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Satu layar untuk melaporkan masalah lingkungan.',
-                  style: textTheme.titleLarge?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    height: 1.12,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'Masuk untuk memantau laporan, kirim foto kondisi lapangan, dan lanjutkan tindakan tanpa menunggu.',
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    height: 1.45,
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: const [
-                    _FeaturePill(label: 'Foto + lokasi'),
-                    _FeaturePill(label: 'Status laporan'),
-                    _FeaturePill(label: 'Warga & admin'),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
-                  ),
-                  child: Row(
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Container(
-                        height: 44,
-                        width: 44,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.18),
-                          shape: BoxShape.circle,
+                      // Apple Brand Signature
+                      Center(
+                        child: Container(
+                          width: 68,
+                          height: 68,
+                          decoration: BoxDecoration(
+                            gradient: AppColors.luxuryBrandGradient,
+                            borderRadius: BorderRadius.circular(22),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.forest.withValues(alpha: 0.28),
+                                blurRadius: 20,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.25),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.park_rounded,
+                              color: Colors.white,
+                              size: 34,
+                            ),
+                          ),
                         ),
-                        child: const Icon(Icons.verified_outlined, color: Colors.white, size: 20),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                      const SizedBox(height: 20),
+
+                      Text(
+                        'ECO RANGERS',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 2.0,
+                          color: isDark ? const Color(0xFF74C69D) : AppColors.sage,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _isRegister ? 'Buat Akun Baru' : 'Selamat Datang',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.displayLarge?.copyWith(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -1.0,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _isRegister
+                            ? 'Daftar untuk mulai mengawal dan menjaga lingkungan bersama warga.'
+                            : 'Masuk ke portal civic tech untuk memantau status laporan Anda.',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontSize: 13.5,
+                          color: isDark ? AppColors.darkMutedTextColor : AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+
+                      // Segment Switcher (Apple Segment Control Style)
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF14201A) : AppColors.backgroundSecondary,
+                          borderRadius: BorderRadius.circular(AppRadius.full),
+                          border: Border.all(
+                            color: isDark ? Colors.white.withValues(alpha: 0.08) : AppColors.line,
+                          ),
+                        ),
+                        child: Row(
                           children: [
-                            Text(
-                              'Temuan tersampaikan ke pihak berwenang.',
-                              style: textTheme.titleSmall?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              'Setiap laporan langsung terpantau dan ditindaklanjuti.',
-                              style: textTheme.bodySmall?.copyWith(
-                                color: Colors.white.withValues(alpha: 0.86),
-                                height: 1.35,
-                              ),
-                            ),
+                            _segmentButton('Masuk', !_isRegister, () {
+                              if (_isRegister) setState(() => _isRegister = false);
+                            }, isDark),
+                            _segmentButton('Daftar', _isRegister, () {
+                              if (!_isRegister) setState(() => _isRegister = true);
+                            }, isDark),
                           ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Card Form Container
+                      Container(
+                        padding: const EdgeInsets.all(22),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF14201A) : AppColors.surface,
+                          borderRadius: BorderRadius.circular(AppRadius.xl),
+                          border: Border.all(
+                            color: isDark ? Colors.white.withValues(alpha: 0.08) : AppColors.line,
+                          ),
+                          boxShadow: AppShadows.luxuryCard,
+                        ),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (_errorMessage != null) ...[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.ditolakBg,
+                                    borderRadius: BorderRadius.circular(AppRadius.md),
+                                    border: Border.all(color: AppColors.ditolakBorder),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.error_outline_rounded, size: 16, color: AppColors.ditolakText),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          _errorMessage!,
+                                          style: const TextStyle(
+                                            fontSize: 12.5,
+                                            color: AppColors.ditolakText,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                              ],
+
+                              if (_isRegister) ...[
+                                TextFormField(
+                                  controller: _usernameController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Username',
+                                    prefixIcon: Icon(Icons.person_outline_rounded, size: 20),
+                                    hintText: 'Minimal 3 karakter',
+                                  ),
+                                  validator: (v) {
+                                    if (v == null || v.trim().length < 3) {
+                                      return 'Username minimal 3 karakter';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 14),
+                              ],
+
+                              TextFormField(
+                                controller: _emailController,
+                                keyboardType: TextInputType.emailAddress,
+                                decoration: const InputDecoration(
+                                  labelText: 'Alamat Email',
+                                  prefixIcon: Icon(Icons.mail_outline_rounded, size: 20),
+                                  hintText: 'nama@domain.com',
+                                ),
+                                validator: (v) {
+                                  if (v == null || !v.contains('@') || !v.contains('.')) {
+                                    return 'Format email tidak valid';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 14),
+
+                              TextFormField(
+                                controller: _passwordController,
+                                obscureText: _obscurePassword,
+                                decoration: InputDecoration(
+                                  labelText: 'Kata Sandi',
+                                  prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                                      size: 18,
+                                    ),
+                                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                  ),
+                                ),
+                                validator: (v) {
+                                  if (v == null || v.length < 8) {
+                                    return 'Password minimal 8 karakter';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 22),
+
+                              // Submit Action Button
+                              ElevatedButton(
+                                onPressed: _isLoading ? null : _submit,
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : Text(_isRegister ? 'Daftar Sekarang' : 'Masuk ke Aplikasi'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Quick Helper
+                      Center(
+                        child: Text(
+                          'Eco Rangers Civic Technology Platform • 2026',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: isDark ? AppColors.darkMutedTextColor : AppColors.textMuted,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
-    );
-  }
-
-  Widget _buildAuthCard(BuildContext context, {required bool isWide}) {
-    final theme = Theme.of(context);
-    final textTheme = theme.textTheme;
-
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(isWide ? 24 : 18),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Masuk ke Eco Rangers',
-            style: textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.2,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Kelola atau kirim laporan dalam beberapa langkah.',
-            style: textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-          ),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: TabBar(
-              controller: _tabController,
-              indicatorSize: TabBarIndicatorSize.tab,
-              dividerColor: Colors.transparent,
-              indicator: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
               ),
-              labelColor: AppTheme.primaryColor,
-              unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
-              labelStyle: const TextStyle(fontWeight: FontWeight.w700),
-              tabs: const [
-                Tab(text: 'Masuk'),
-                Tab(text: 'Daftar'),
-              ],
             ),
           ),
-          const SizedBox(height: 20),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 220),
-              switchInCurve: Curves.easeOut,
-              switchOutCurve: Curves.easeIn,
-              child: _currentTabIndex == 0 ? _buildLoginForm(context) : _buildRegisterForm(context),
-            ),
         ],
       ),
     );
   }
 
-  Widget _buildLoginForm(BuildContext context) {
-    return Form(
-      key: _loginFormKey,
-      child: Column(
-        key: const ValueKey('login-form'),
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          TextFormField(
-            controller: _loginEmailController,
-            decoration: _fieldDecoration(
-              label: 'Email',
-              icon: Icons.alternate_email,
-              hint: 'nama@contoh.com',
-            ),
-            keyboardType: TextInputType.emailAddress,
-            maxLength: 254,
-            validator: (v) => (v == null || !v.contains('@')) ? 'Email tidak valid' : null,
-          ),
-          const SizedBox(height: 14),
-          TextFormField(
-            controller: _loginPasswordController,
-            decoration: _fieldDecoration(
-              label: 'Password',
-              icon: Icons.lock_outline,
-              hint: 'Masukkan password Anda',
-            ),
-            obscureText: true,
-            maxLength: 72,
-            validator: (v) => (v == null || v.isEmpty) ? 'Password wajib diisi' : null,
-          ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              'Gunakan akun yang sudah terverifikasi.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-            ),
-          ),
-          const SizedBox(height: 20),
-          FilledButton(
-            onPressed: _isLoading ? null : _handleLogin,
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 180),
-              child: _isLoading
-                  ? const SizedBox(
-                      key: ValueKey('login-loading'),
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Text(
-                      'Masuk',
-                      key: ValueKey('login-text'),
+  Widget _segmentButton(String title, bool isSelected, VoidCallback onTap, bool isDark) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? (isDark ? const Color(0xFF1B4D36) : AppColors.surface)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppRadius.full),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
                     ),
+                  ]
+                : null,
+          ),
+          child: Text(
+            title,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+              color: isSelected
+                  ? (isDark ? Colors.white : AppColors.ink)
+                  : (isDark ? AppColors.darkMutedTextColor : AppColors.textSecondary),
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRegisterForm(BuildContext context) {
-    return Form(
-      key: _registerFormKey,
-      child: Column(
-        key: const ValueKey('register-form'),
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          TextFormField(
-            controller: _registerNameController,
-            decoration: _fieldDecoration(
-              label: 'Nama pengguna',
-              icon: Icons.person_outline,
-              hint: 'Nama tampilan Anda',
-            ),
-            maxLength: 100,
-            validator: (v) => (v == null || v.trim().length < 3) ? 'Minimal 3 karakter' : null,
-          ),
-          const SizedBox(height: 14),
-          TextFormField(
-            controller: _registerEmailController,
-            decoration: _fieldDecoration(
-              label: 'Email',
-              icon: Icons.alternate_email,
-              hint: 'nama@contoh.com',
-            ),
-            keyboardType: TextInputType.emailAddress,
-            maxLength: 254,
-            validator: (v) => (v == null || !v.contains('@')) ? 'Email tidak valid' : null,
-          ),
-          const SizedBox(height: 14),
-          TextFormField(
-            controller: _registerPasswordController,
-            decoration: _fieldDecoration(
-              label: 'Password',
-              icon: Icons.lock_outline,
-              hint: 'Minimal 8 karakter',
-            ),
-            obscureText: true,
-            validator: (v) => (v == null || v.length < 8) ? 'Minimal 8 karakter' : null,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Akun baru langsung masuk ke alur laporan setelah registrasi.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-          ),
-          const SizedBox(height: 20),
-          FilledButton(
-            onPressed: _isLoading ? null : _handleRegister,
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 180),
-              child: _isLoading
-                  ? const SizedBox(
-                      key: ValueKey('register-loading'),
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Text(
-                      'Buat akun',
-                      key: ValueKey('register-text'),
-                    ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FeaturePill extends StatelessWidget {
-  const _FeaturePill({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-            ),
-      ),
-    );
-  }
-}
-
-class _OrbitBadge extends StatelessWidget {
-  const _OrbitBadge({
-    required this.icon,
-    required this.label,
-    required this.accent,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: accent,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: Colors.white, size: 18),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-        ],
+        ),
       ),
     );
   }

@@ -34,10 +34,10 @@ class AdminUserSeeder extends Seeder
         User::where('email', $email)->delete();
 
         User::create([
-            'name' => 'Admin User', // Menambahkan kolom name yang wajib diisi
+            'name' => 'Admin User',
             'username' => 'admin',
             'email' => $email,
-            'password' => $password, // otomatis di-hash oleh cast 'hashed'
+            'password' => \Illuminate\Support\Facades\Hash::make($password),
             'is_admin' => true,
         ]);
     }

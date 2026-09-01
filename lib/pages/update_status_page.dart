@@ -1,230 +1,256 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+
 import '../locator.dart';
 import '../models/laporan.dart';
 import '../services/api_client.dart';
+import '../ui/tokens.dart';
 
+/// UpdateStatusPage khusus Admin untuk merubah status laporan dan melampirkan dokumentasi pengerjaan.
 class UpdateStatusPage extends StatefulWidget {
-  final Laporan laporan;
+  final Laporan report;
 
-  const UpdateStatusPage({super.key, required this.laporan});
+  const UpdateStatusPage({super.key, required this.report});
 
   @override
   State<UpdateStatusPage> createState() => _UpdateStatusPageState();
 }
 
 class _UpdateStatusPageState extends State<UpdateStatusPage> {
-  final _picker = ImagePicker();
-  final _formKey = GlobalKey<FormState>();
-  final _namaPetugasController = TextEditingController();
-  final _keteranganController = TextEditingController();
-  XFile? _documentationImage;
-  String? _selectedStatus;
-  bool _isLoading = false;
+  final ApiClient _apiClient = locator<ApiClient>();
+  final ImagePicker _picker = ImagePicker();
 
-  final _apiClient = locator<ApiClient>();
+  late String _status;
+  final _petugasController = TextEditingController();
+  final _keteranganController = TextEditingController();
+  XFile? _docImage;
+  bool _isSubmitting = false;
+
+  final List<String> _statuses = ['pending', 'diproses', 'selesai', 'ditolak'];
 
   @override
   void initState() {
     super.initState();
-    _selectedStatus = widget.laporan.status.toLowerCase();
+    _status = widget.report.status.toLowerCase();
   }
 
   @override
   void dispose() {
-    _namaPetugasController.dispose();
+    _petugasController.dispose();
     _keteranganController.dispose();
     super.dispose();
   }
 
-  Future<void> _pickImage() async {
-    final pickedFile = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (mounted) {
-      setState(() {
-        _documentationImage = pickedFile;
-      });
-    }
+  Future<void> _pickDocImage(ImageSource source) async {
+    try {
+      final file = await _picker.pickImage(
+        source: source,
+        maxWidth: 1920,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
+      if (file != null) setState(() => _docImage = file);
+    } catch (_) {}
   }
 
-  void _clearImage() {
-    setState(() {
-      _documentationImage = null;
-    });
-  }
-
-  Future<void> _submitUpdate() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isLoading = true);
+  Future<void> _submitStatusUpdate() async {
+    setState(() => _isSubmitting = true);
 
     try {
       await _apiClient.updateReportStatus(
-        id: widget.laporan.id,
-        status: _selectedStatus!,
-        namaPetugas: _namaPetugasController.text,
-        keterangan: _keteranganController.text,
-        documentationImage: _documentationImage,
+        id: widget.report.id,
+        status: _status,
+        namaPetugas: _petugasController.text.trim().isNotEmpty ? _petugasController.text.trim() : null,
+        keterangan: _keteranganController.text.trim().isNotEmpty ? _keteranganController.text.trim() : null,
+        documentationImage: _docImage,
       );
-      
-      if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Status laporan berhasil diperbarui'), backgroundColor: Colors.green),
-      );
-      Navigator.pop(context, true);
-
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memperbarui: $e'), backgroundColor: Colors.red),
-      );
-    } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Status laporan berhasil diperbarui')),
+        );
+        Navigator.of(context).pop(true);
       }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memperbarui status: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Update Status Laporan'),
+        title: const Text('Perbarui Status'),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('Laporan: ${widget.laporan.judul}', style: textTheme.titleLarge, maxLines: 2, overflow: TextOverflow.ellipsis),
-              const SizedBox(height: 24),
-              _buildStatusDropdown(),
-              const SizedBox(height: 16),
-              _buildTextField(
-                controller: _keteranganController,
-                label: 'Keterangan / Catatan',
-                icon: Icons.notes,
-                maxLines: 3,
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Target Report Overview
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF14201A) : AppColors.surface,
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                border: Border.all(color: AppColors.line),
               ),
-              const SizedBox(height: 16),
-              _buildTextField(
-                controller: _namaPetugasController,
-                label: 'Nama Petugas (Opsional)',
-                icon: Icons.person_outline,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'ID LAPORAN: #${widget.report.id}',
+                    style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppColors.textMuted),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    widget.report.judul,
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                  ),
+                ],
               ),
-              const SizedBox(height: 24),
-              Text('Foto Dokumentasi (Opsional)', style: textTheme.titleMedium),
-              const SizedBox(height: 8),
-              _buildImagePicker(),
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: _buildSubmitButton(),
-      ),
-    );
-  }
-
-  Widget _buildStatusDropdown() {
-    return DropdownButtonFormField<String>(
-      initialValue: _selectedStatus,
-      decoration: const InputDecoration(
-        labelText: 'Status Laporan',
-        prefixIcon: Icon(Icons.flag_outlined),
-      ),
-      items: ['pending', 'diproses', 'selesai', 'ditolak'].map((String value) {
-        return DropdownMenuItem<String>(
-          value: value,
-          child: Text(value[0].toUpperCase() + value.substring(1)), // Capitalize first letter
-        );
-      }).toList(),
-      onChanged: (newValue) {
-        setState(() {
-          _selectedStatus = newValue;
-        });
-      },
-      validator: (value) => value == null || value.isEmpty ? 'Status tidak boleh kosong' : null,
-    );
-  }
-
-  Widget _buildTextField({required TextEditingController controller, required String label, required IconData icon, int maxLines = 1}) {
-    return TextFormField(
-      controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon),
-      ),
-      maxLines: maxLines,
-    );
-  }
-
-  Widget _buildImagePicker() {
-    if (_documentationImage != null) {
-      return Stack(
-        clipBehavior: Clip.none,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: kIsWeb
-                ? Image.network(_documentationImage!.path, height: 200, width: double.infinity, fit: BoxFit.cover)
-                : Image.file(File(_documentationImage!.path), height: 200, width: double.infinity, fit: BoxFit.cover),
-          ),
-          Positioned(
-            top: -10,
-            right: -10,
-            child: IconButton(
-              icon: const CircleAvatar(
-                backgroundColor: Colors.black54,
-                child: Icon(Icons.close, color: Colors.white, size: 20),
-              ),
-              onPressed: _clearImage,
             ),
-          ),
-        ],
-      );
-    }
+            const SizedBox(height: 24),
 
-    return InkWell(
-      onTap: _pickImage,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        height: 150,
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey[400]!),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.add_a_photo_outlined, size: 40, color: Colors.grey),
-              SizedBox(height: 8),
-              Text('Tambah Foto', style: TextStyle(color: Colors.grey)),
-            ],
-          ),
+            // Status Selector
+            const Text(
+              'PILIH STATUS BARU',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.textMuted),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _statuses.map((st) {
+                final isSelected = st == _status;
+                return GestureDetector(
+                  onTap: () => setState(() => _status = st),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? (isDark ? const Color(0xFF52B788) : AppColors.forest) : (isDark ? const Color(0xFF14201A) : AppColors.surface),
+                      borderRadius: BorderRadius.circular(AppRadius.full),
+                      border: Border.all(color: isSelected ? Colors.transparent : AppColors.line),
+                    ),
+                    child: Text(
+                      st.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                        color: isSelected ? Colors.white : (isDark ? Colors.white : AppColors.ink),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 24),
+
+            // Form Inputs
+            TextFormField(
+              controller: _petugasController,
+              decoration: const InputDecoration(
+                labelText: 'Nama Petugas / Tim Penangan',
+                hintText: 'Mis: Tim Reaksi Cepat DLH',
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            TextFormField(
+              controller: _keteranganController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Catatan & Kronologi Tindak Lanjut',
+                hintText: 'Jelaskan hasil pekerjaan di lapangan...',
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Documentation Photo
+            const Text(
+              'FOTO BUKTI PENANGANAN (OPSIONAL)',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.textMuted),
+            ),
+            const SizedBox(height: 10),
+            if (_docImage != null)
+              Stack(
+                children: [
+                  Container(
+                    height: 160,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      border: Border.all(color: AppColors.line),
+                      image: DecorationImage(
+                        image: kIsWeb
+                            ? NetworkImage(_docImage!.path)
+                            : FileImage(File(_docImage!.path)) as ImageProvider,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: GestureDetector(
+                      onTap: () => setState(() => _docImage = null),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                        child: const Icon(Icons.close_rounded, color: Colors.white, size: 16),
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            else
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _pickDocImage(ImageSource.camera),
+                      icon: const Icon(Icons.camera_alt_rounded, size: 16),
+                      label: const Text('Ambil Foto'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _pickDocImage(ImageSource.gallery),
+                      icon: const Icon(Icons.photo_library_rounded, size: 16),
+                      label: const Text('Pilih Galeri'),
+                    ),
+                  ),
+                ],
+              ),
+            const SizedBox(height: 32),
+
+            // Submit Button
+            ElevatedButton(
+              onPressed: _isSubmitting ? null : _submitStatusUpdate,
+              style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 52)),
+              child: _isSubmitting
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Simpan Pembaruan Status'),
+            ),
+          ],
         ),
       ),
-    );
-  }
-
-  Widget _buildSubmitButton() {
-    return ElevatedButton.icon(
-      onPressed: _isLoading ? null : _submitUpdate,
-      icon: _isLoading ? Container() : const Icon(Icons.save_alt_outlined),
-      label: _isLoading
-          ? const SizedBox(
-              height: 24, width: 24,
-              child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white),
-            )
-          : const Text('Simpan Perubahan'),
     );
   }
 }

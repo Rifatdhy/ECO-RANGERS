@@ -1,5 +1,5 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
-
 import '../ui/tokens.dart';
 import 'activity_page.dart';
 import 'buat_laporan_page.dart';
@@ -7,135 +7,185 @@ import 'home_page.dart';
 import 'map_page.dart';
 import 'profile_page.dart';
 
+/// MainShell terinspirasi Apple iOS Tab View:
+/// Menggunakan Frosted Glass Bottom Navigation Bar yang tipis dan jernih,
+/// Floating Center Action Button (Lapor) ber-haptic feedback visual,
+/// dan transisi halaman super mulus.
 class MainShell extends StatefulWidget {
-  const MainShell({super.key});
+  final int initialIndex;
+
+  const MainShell({super.key, this.initialIndex = 0});
 
   @override
   State<MainShell> createState() => _MainShellState();
 }
 
 class _MainShellState extends State<MainShell> {
-  final _homeKey = GlobalKey<HomePageState>();
-  final _mapKey = GlobalKey<MapPageState>();
-  final _activityKey = GlobalKey<ActivityPageState>();
-  final _profileKey = GlobalKey<ProfilePageState>();
-  // Lazy-build: tab hanya di-build saat pertama kali dipilih.
-  final Set<int> _built = {0};
-  int _index = 0;
+  late int _currentIndex;
+  final Set<int> _builtIndices = {0};
 
-  void _openCreateReport() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const BuatLaporanPage()),
-    ).then((_) {
-      if (!mounted) return;
-      // Refresh home secara background, tanpa flash loading penuh.
-      _homeKey.currentState?.refresh(silent: true);
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _builtIndices.add(_currentIndex);
+  }
+
+  void _onTabTapped(int index) {
+    if (index == 2) {
+      // FAB Action: Buat Laporan
+      _openBuatLaporan();
+      return;
+    }
+    setState(() {
+      _currentIndex = index;
+      _builtIndices.add(index);
     });
   }
 
-  void _onDestinationSelected(int i) {
-    if (i == 2) return; // slot FAB tengah: tidak ada halaman, jangan pindah.
-    setState(() {
-      _built.add(i);
-      _index = i;
-    });
-    // Refresh silent: data lama tetap tampil, hindari flash loading per tab.
-    switch (i) {
-      case 0:
-        _homeKey.currentState?.refresh(silent: true);
-      case 1:
-        _mapKey.currentState?.refresh(silent: true);
-      case 3:
-        _activityKey.currentState?.refresh(silent: true);
-      case 4:
-        _profileKey.currentState?.refresh(silent: true);
+  Future<void> _openBuatLaporan() async {
+    final created = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => const BuatLaporanPage(),
+        fullscreenDialog: true,
+      ),
+    );
+    if (created == true && mounted) {
+      setState(() {
+        _currentIndex = 0; // Kembali ke Home & refresh
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final pages = <Widget>[
+      _builtIndices.contains(0) ? const HomePage() : const SizedBox.shrink(),
+      _builtIndices.contains(1) ? const MapPage() : const SizedBox.shrink(),
+      const SizedBox.shrink(), // Index 2 placeholder (FAB)
+      _builtIndices.contains(3) ? const ActivityPage() : const SizedBox.shrink(),
+      _builtIndices.contains(4) ? const ProfilePage() : const SizedBox.shrink(),
+    ];
+
     return Scaffold(
+      extendBody: true,
       body: IndexedStack(
-        index: _index,
-        children: [
-          HomePage(key: _homeKey, openCreateReport: _openCreateReport),
-          _built.contains(1) ? MapPage(key: _mapKey) : const SizedBox.shrink(),
-          const SizedBox.shrink(), // slot FAB tengah (tidak ada halaman)
-          _built.contains(3) ? ActivityPage(key: _activityKey) : const SizedBox.shrink(),
-          _built.contains(4) ? ProfilePage(key: _profileKey) : const SizedBox.shrink(),
-        ],
+        index: _currentIndex,
+        children: pages,
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: SizedBox(
-        width: 120,
-        height: 112,
-        child: Stack(
-          alignment: Alignment.topCenter,
-          children: [
-            Positioned(
-              top: 0,
-              child: Semantics(
-                label: 'Buat laporan',
-                button: true,
-                child: GestureDetector(
-                onTap: _openCreateReport,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [AppColors.primary, AppColors.secondary],
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.4),
-                        blurRadius: 16,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(Icons.add_rounded, color: Colors.white, size: 32),
-                ),
+      bottomNavigationBar: _buildAppleGlassBottomNav(isDark),
+    );
+  }
+
+  Widget _buildAppleGlassBottomNav(bool isDark) {
+    return ClipRRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          decoration: BoxDecoration(
+            color: isDark
+                ? const Color(0xE6101B15)
+                : const Color(0xE6FFFFFF),
+            border: Border(
+              top: BorderSide(
+                color: isDark ? Colors.white.withValues(alpha: 0.08) : AppColors.line,
+                width: 0.8,
               ),
+            ),
+            boxShadow: AppShadows.bottomNav,
+          ),
+          child: SafeArea(
+            top: false,
+            child: SizedBox(
+              height: 64,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _navItem(0, Icons.home_rounded, Icons.home_outlined, 'Beranda', isDark),
+                  _navItem(1, Icons.explore_rounded, Icons.explore_outlined, 'Peta', isDark),
+                  _buildCenterFab(isDark),
+                  _navItem(3, Icons.task_alt_rounded, Icons.task_alt_outlined, 'Aktivitas', isDark),
+                  _navItem(4, Icons.person_rounded, Icons.person_outline_rounded, 'Profil', isDark),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _navItem(int index, IconData activeIcon, IconData inactiveIcon, String label, bool isDark) {
+    final isSelected = _currentIndex == index;
+    final activeColor = isDark ? const Color(0xFF52B788) : AppColors.forest;
+    final inactiveColor = isDark ? AppColors.darkMutedTextColor : AppColors.textMuted;
+
+    return Expanded(
+      child: InkWell(
+        onTap: () => _onTabTapped(index),
+        splashColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedScale(
+              scale: isSelected ? 1.08 : 1.0,
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              child: Icon(
+                isSelected ? activeIcon : inactiveIcon,
+                color: isSelected ? activeColor : inactiveColor,
+                size: 24,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? activeColor : inactiveColor,
+                letterSpacing: -0.1,
               ),
             ),
           ],
         ),
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: _onDestinationSelected,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home_rounded),
-            label: 'Home',
+    );
+  }
+
+  Widget _buildCenterFab(bool isDark) {
+    return Expanded(
+      child: Center(
+        child: GestureDetector(
+          onTap: _openBuatLaporan,
+          child: Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              gradient: AppColors.luxuryBrandGradient,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.forest.withValues(alpha: 0.35),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.25),
+                width: 1.5,
+              ),
+            ),
+            child: const Icon(
+              Icons.add_rounded,
+              color: Colors.white,
+              size: 26,
+            ),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.map_outlined),
-            selectedIcon: Icon(Icons.map_rounded),
-            label: 'Peta',
-          ),
-          NavigationDestination(
-            icon: SizedBox.shrink(),
-            label: '',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.assignment_outlined),
-            selectedIcon: Icon(Icons.assignment_rounded),
-            label: 'Aktivitas',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline_rounded),
-            selectedIcon: Icon(Icons.person_rounded),
-            label: 'Profil',
-          ),
-        ],
+        ),
       ),
     );
   }

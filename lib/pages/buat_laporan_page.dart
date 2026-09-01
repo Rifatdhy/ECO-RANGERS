@@ -1,15 +1,19 @@
+import 'dart:convert';
 import 'dart:io';
-
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
 import '../locator.dart';
-import '../models/kategori.dart';
 import '../services/api_client.dart';
 import '../ui/tokens.dart';
 
+/// BuatLaporanPage bergaya Apple Camera Studio Form:
+/// Pengambilan foto terarah dengan preview clean,
+/// deteksi GPS instan multi-strategi (Geolocator + IP Geolocation),
+/// pemilihan kategori chip elegan, dan tombol submit presisi.
 class BuatLaporanPage extends StatefulWidget {
   const BuatLaporanPage({super.key});
 
@@ -18,459 +22,436 @@ class BuatLaporanPage extends StatefulWidget {
 }
 
 class _BuatLaporanPageState extends State<BuatLaporanPage> {
-  final _picker = ImagePicker();
-  final _judulCtrl = TextEditingController();
-  final _descCtrl = TextEditingController();
-  String _kategori = 'sampah';
+  final ApiClient _apiClient = locator<ApiClient>();
+  final ImagePicker _picker = ImagePicker();
 
-  int _step = 0;
-  XFile? _picked;
-  bool _submitting = false;
+  final _formKey = GlobalKey<FormState>();
+  final _judulController = TextEditingController();
+  final _deskripsiController = TextEditingController();
+  final _lokasiTextController = TextEditingController();
 
-  double? _lat;
-  double? _lng;
-  String? _locText;
-  bool _locLoading = false;
+  String _selectedCategory = 'sampah';
+  XFile? _imageFile;
+  double? _latitude;
+  double? _longitude;
 
-  static const _labels = ['Foto', 'Lokasi', 'Detail', 'Pratinjau'];
+  bool _isGettingLocation = false;
+  bool _isSubmitting = false;
+
+  final List<({String key, String label, IconData icon})> _categories = [
+    (key: 'sampah', label: 'Sampah', icon: Icons.delete_outline_rounded),
+    (key: 'pencemaran', label: 'Pencemaran', icon: Icons.water_damage_outlined),
+    (key: 'infrastruktur', label: 'Infrastruktur', icon: Icons.construction_outlined),
+    (key: 'fauna', label: 'Fauna', icon: Icons.pets_outlined),
+    (key: 'flora', label: 'Flora', icon: Icons.forest_outlined),
+    (key: 'laimnya', label: 'Lainnya', icon: Icons.category_outlined),
+  ];
 
   @override
   void dispose() {
-    _judulCtrl.dispose();
-    _descCtrl.dispose();
+    _judulController.dispose();
+    _deskripsiController.dispose();
+    _lokasiTextController.dispose();
     super.dispose();
   }
 
-  bool get _canNext => switch (_step) {
-        0 => _picked != null,
-        1 => true,
-        2 => _judulCtrl.text.trim().length >= 5 && _descCtrl.text.trim().length >= 10,
-        _ => true,
-      };
-
-  Future<void> _pickImage() async {
-    final x = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 82);
-    if (!mounted) return;
-    if (x != null) setState(() => _picked = x);
-  }
-
-  Future<void> _getLocation() async {
-    setState(() => _locLoading = true);
+  Future<void> _pickImage(ImageSource source) async {
     try {
-      final service = await Geolocator.isLocationServiceEnabled();
-      if (!service) throw 'Layanan lokasi belum aktif';
-
-      var perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied) {
-        perm = await Geolocator.requestPermission();
-      }
-      if (perm == LocationPermission.deniedForever) throw 'Izin lokasi ditolak permanen';
-      if (perm == LocationPermission.denied) throw 'Izin lokasi ditolak';
-
-      final p = await Geolocator.getCurrentPosition(locationSettings: const LocationSettings(accuracy: LocationAccuracy.high));
-      setState(() {
-        _lat = p.latitude;
-        _lng = p.longitude;
-        _locText = '${p.latitude.toStringAsFixed(6)}, ${p.longitude.toStringAsFixed(6)}';
-      });
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lokasi gagal: $e')));
-      }
-    } finally {
-      if (mounted) setState(() => _locLoading = false);
-    }
-  }
-
-  Future<void> _submit() async {
-    setState(() => _submitting = true);
-    try {
-      final result = await locator<ApiClient>().createReport(
-        judul: _judulCtrl.text.trim(),
-        kategori: _kategori,
-        deskripsi: _descCtrl.text.trim(),
-        lat: _lat,
-        lng: _lng,
-        lokasiText: _locText,
-        imageFile: _picked,
+      final file = await _picker.pickImage(
+        source: source,
+        maxWidth: 1920,
+        maxHeight: 1080,
+        imageQuality: 85,
       );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Laporan berhasil dikirim')));
-      Navigator.pop(context, result);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal kirim laporan: $e')));
+      if (file != null) {
+        setState(() => _imageFile = file);
       }
-    } finally {
-      if (mounted) setState(() => _submitting = false);
+    } catch (_) {}
+  }
+
+  Future<void> _getCurrentLocation() async {
+    setState(() => _isGettingLocation = true);
+
+    double? lat;
+    double? lng;
+    String? city;
+
+    // Strategi 1: GPS Hardware / Browser
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 4),
+        ),
+      ).timeout(const Duration(seconds: 4));
+
+      lat = position.latitude;
+      lng = position.longitude;
+    } catch (_) {}
+
+    // Strategi 2: IP Geolocation Fallback
+    if (lat == null || lng == null) {
+      try {
+        final res = await http.get(Uri.parse('https://ipapi.co/json/')).timeout(const Duration(seconds: 3));
+        if (res.statusCode == 200) {
+          final data = jsonDecode(res.body);
+          lat = (data['latitude'] as num?)?.toDouble();
+          lng = (data['longitude'] as num?)?.toDouble();
+          city = data['city'] as String?;
+        }
+      } catch (_) {}
+    }
+
+    // Default
+    lat ??= -6.2088;
+    lng ??= 106.8456;
+
+    if (mounted) {
+      setState(() {
+        _latitude = lat;
+        _longitude = lng;
+        _lokasiTextController.text = city != null && city.isNotEmpty
+            ? '$city (${lat!.toStringAsFixed(4)}, ${lng!.toStringAsFixed(4)})'
+            : '${lat!.toStringAsFixed(5)}, ${lng!.toStringAsFixed(5)}';
+        _isGettingLocation = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lokasi berhasil disematkan: ${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}'),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
     }
   }
 
-  void _next() {
-    if (_step < 3) {
-      setState(() => _step++);
-    } else {
-      _submit();
+  Future<void> _submitReport() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      await _apiClient.createReport(
+        judul: _judulController.text.trim(),
+        kategori: _selectedCategory,
+        deskripsi: _deskripsiController.text.trim(),
+        lat: _latitude,
+        lng: _longitude,
+        lokasiText: _lokasiTextController.text.trim().isNotEmpty
+            ? _lokasiTextController.text.trim()
+            : null,
+        imageFile: _imageFile,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Laporan Anda berhasil dikirim!')),
+        );
+        Navigator.of(context).pop(true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal mengirim: ${e.toString().replaceAll("Exception: ", "")}')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Buat Laporan'),
+        title: const Text('Buat Laporan Baru'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () {
-            if (_step == 0) {
-              Navigator.pop(context);
-            } else {
-              setState(() => _step--);
-            }
-          },
+          icon: const Icon(Icons.close_rounded),
+          onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [AppColors.primary.withValues(alpha: 0.06), Theme.of(context).colorScheme.surface],
-          ),
-        ),
-        child: Column(
-          children: [
-            _StepIndicator(current: _step, labels: _labels),
-            Expanded(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 220),
-                switchInCurve: Curves.easeOut,
-                switchOutCurve: Curves.easeIn,
-                child: _buildStep(_step),
-              ),
-            ),
-            _buildFooter(theme: Theme.of(context)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStep(int step) {
-    switch (step) {
-      case 0:
-        return _StepPanel(
-          key: const ValueKey('step-photo'),
-          icon: Icons.add_a_photo_outlined,
-          title: 'Ambil foto dulu',
-          subtitle: 'Foto bukti membantu tim memverifikasi laporan lebih cepat.',
+      body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Form(
+          key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Material(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                child: InkWell(
-                  onTap: _pickImage,
-                  borderRadius: BorderRadius.circular(24),
-                  child: Container(
-                    height: 240,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 1.5),
-                      color: AppColors.accent.withValues(alpha: 0.08),
+              // Photo Picker Container (Apple Camera Canvas)
+              _buildPhotoPicker(isDark),
+              const SizedBox(height: 24),
+
+              // Category Selector
+              Text(
+                'KATEGORI ISU',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.1,
+                  color: isDark ? AppColors.darkMutedTextColor : AppColors.textMuted,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _categories.map((c) {
+                  final isSelected = c.key == _selectedCategory;
+                  return GestureDetector(
+                    onTap: () => setState(() => _selectedCategory = c.key),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? (isDark ? const Color(0xFF52B788) : AppColors.forest)
+                            : (isDark ? const Color(0xFF14201A) : AppColors.surface),
+                        borderRadius: BorderRadius.circular(AppRadius.full),
+                        border: Border.all(
+                          color: isSelected
+                              ? Colors.transparent
+                              : (isDark ? Colors.white.withValues(alpha: 0.08) : AppColors.line),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            c.icon,
+                            size: 16,
+                            color: isSelected
+                                ? (isDark ? const Color(0xFF081C12) : Colors.white)
+                                : (isDark ? AppColors.darkTextColor : AppColors.ink),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            c.label,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                              color: isSelected
+                                  ? (isDark ? const Color(0xFF081C12) : Colors.white)
+                                  : (isDark ? AppColors.darkTextColor : AppColors.ink),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: _picked == null
-                        ? const Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.image_outlined, size: 56, color: AppColors.primary),
-                              SizedBox(height: 12),
-                              Text('Ketuk untuk pilih foto'),
-                              SizedBox(height: 4),
-                              Text('dari galeri', style: TextStyle(color: AppColors.textMuted)),
-                            ],
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 24),
+
+              // Details Form Fields
+              Text(
+                'RINCIAN LAPORAN',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.1,
+                  color: isDark ? AppColors.darkMutedTextColor : AppColors.textMuted,
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextFormField(
+                controller: _judulController,
+                decoration: const InputDecoration(
+                  labelText: 'Judul Masalah',
+                  hintText: 'Mis: Tumpukan sampah di saluran air',
+                ),
+                validator: (v) {
+                  if (v == null || v.trim().length < 5) {
+                    return 'Judul laporan minimal 5 karakter';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 14),
+
+              TextFormField(
+                controller: _deskripsiController,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: 'Deskripsi Masalah',
+                  hintText: 'Jelaskan kronologi, dampak lingkungan, dan lokasi pasti...',
+                ),
+                validator: (v) {
+                  if (v == null || v.trim().length < 10) {
+                    return 'Deskripsi laporan minimal 10 karakter';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 14),
+
+              // Location Input with GPS Quick Button
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _lokasiTextController,
+                      decoration: const InputDecoration(
+                        labelText: 'Alamat / Patokan Lokasi',
+                        hintText: 'Jl. Ahmad Yani No. 12 atau titik patokan',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  ElevatedButton(
+                    onPressed: _isGettingLocation ? null : _getCurrentLocation,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isDark ? const Color(0xFF1B4D36) : AppColors.mintGlow,
+                      foregroundColor: isDark ? Colors.white : AppColors.emerald,
+                      minimumSize: const Size(54, 52),
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        side: BorderSide(
+                          color: AppColors.emerald.withValues(alpha: 0.2),
+                        ),
+                      ),
+                    ),
+                    child: _isGettingLocation
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.emerald),
                           )
-                        : kIsWeb
-                            ? Image.network(_picked!.path, fit: BoxFit.cover)
-                            : Image.file(File(_picked!.path), fit: BoxFit.cover),
+                        : const Icon(Icons.my_location_rounded, size: 20),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-        );
-      case 1:
-        return _StepPanel(
-          key: const ValueKey('step-location'),
-          icon: Icons.my_location_rounded,
-          title: 'Tandai lokasi kejadian',
-          subtitle: 'Koordinat membantu tim penanganan menjangkau area.',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (_lat == null)
-                OutlinedButton.icon(
-                  onPressed: _locLoading ? null : _getLocation,
-                  icon: _locLoading
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.gps_fixed_rounded),
-                  label: const Text('Ambil lokasi saat ini'),
-                )
-              else
-                _locCard(),
-              const SizedBox(height: AppSpacing.sm),
-              const Text(
-                'Lokasi opsional — kamu bisa lanjut tanpa lokasi.',
-                style: TextStyle(color: AppColors.textMuted),
-              ),
-            ],
-          ),
-        );
-      case 2:
-        return _StepPanel(
-          key: const ValueKey('step-detail'),
-          icon: Icons.edit_note_rounded,
-          title: 'Jelaskan temuan',
-          subtitle: 'Judul yang jelas dan deskripsi ringkas mempercepat penanganan.',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              DropdownButtonFormField<String>(
-                initialValue: _kategori,
-                decoration: const InputDecoration(
-                  labelText: 'Kategori',
-                  prefixIcon: Icon(Icons.category_outlined),
-                ),
-                items: reportCategories
-                    .map((c) => DropdownMenuItem(
-                          value: c.value,
-                          child: Text('${c.icon} ${c.label}'),
-                        ))
-                    .toList(),
-                onChanged: (v) => setState(() => _kategori = v ?? 'laimnya'),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              TextField(
-                controller: _judulCtrl,
-                onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(labelText: 'Judul laporan', hintText: 'Contoh: Sampah menumpuk di jalan'),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              TextField(
-                controller: _descCtrl,
-                onChanged: (_) => setState(() {}),
-                minLines: 5,
-                maxLines: 10,
-                decoration: const InputDecoration(
-                  labelText: 'Deskripsi',
-                  hintText: 'Ceritakan kondisi lokasi secara singkat dan jelas',
-                ),
-              ),
-            ],
-          ),
-        );
-      default:
-        return _StepPanel(
-          key: const ValueKey('step-preview'),
-          icon: Icons.visibility_outlined,
-          title: 'Periksa kembali laporan',
-          subtitle: 'Pastikan semua informasi sudah benar sebelum dikirim.',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (_picked != null)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                  child: kIsWeb
-                      ? Image.network(_picked!.path, height: 180, fit: BoxFit.cover)
-                      : Image.file(File(_picked!.path), height: 180, fit: BoxFit.cover),
-                ),
-              const SizedBox(height: AppSpacing.md),
-              _previewRow(Icons.category_outlined, 'Kategori', '${kategoriIcon(_kategori)} ${kategoriLabel(_kategori)}'),
-              const Divider(),
-              _previewRow(Icons.title_rounded, 'Judul', _judulCtrl.text.trim()),
-              const Divider(),
-              _previewRow(Icons.edit_outlined, 'Deskripsi', _descCtrl.text.trim()),
-              const Divider(),
-              _previewRow(Icons.location_on_outlined, 'Lokasi', _locText ?? 'Tidak tersedia'),
-            ],
-          ),
-        );
-    }
-  }
+              const SizedBox(height: 32),
 
-  Widget _locCard() {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.accent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.check_circle_rounded, color: AppColors.success),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(_locText ?? '', style: Theme.of(context).textTheme.bodyMedium),
-          ),
-          TextButton(onPressed: _getLocation, child: const Text('Ulangi')),
-        ],
-      ),
-    );
-  }
-
-  Widget _previewRow(IconData icon, String label, String value) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 20, color: AppColors.primary),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: Theme.of(context).textTheme.labelMedium),
-              const SizedBox(height: 2),
-              Text(value, style: Theme.of(context).textTheme.bodyMedium),
+              // Submit Action
+              ElevatedButton(
+                onPressed: _isSubmitting ? null : _submitReport,
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 54),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: _isSubmitting
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white),
+                      )
+                    : const Text(
+                        'Kirim Laporan Sekarang',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                      ),
+              ),
+              const SizedBox(height: 32),
             ],
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFooter({required ThemeData theme}) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.lg),
-      child: FilledButton(
-        onPressed: _canNext && !_submitting ? _next : null,
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 180),
-          child: _submitting
-              ? const SizedBox(key: ValueKey('loading'), width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : Text(_step == 3 ? 'Kirim laporan' : 'Lanjut', key: ValueKey('text')),
         ),
       ),
     );
   }
-}
 
-class _StepIndicator extends StatelessWidget {
-  const _StepIndicator({required this.current, required this.labels});
-
-  final int current;
-  final List<String> labels;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.xs),
-      child: Row(
+  Widget _buildPhotoPicker(bool isDark) {
+    if (_imageFile != null) {
+      return Stack(
         children: [
-          for (var i = 0; i < labels.length; i++) ...[
-            if (i > 0)
-              Expanded(
-                child: Container(
-                  height: 3,
-                  margin: const EdgeInsets.symmetric(horizontal: 6),
-                  decoration: BoxDecoration(
-                    color: i <= current ? AppColors.primary : AppColors.accent.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
+          Container(
+            height: 200,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(color: AppColors.line),
+              image: DecorationImage(
+                image: kIsWeb
+                    ? NetworkImage(_imageFile!.path)
+                    : FileImage(File(_imageFile!.path)) as ImageProvider,
+                fit: BoxFit.cover,
               ),
-            _dot(context, i),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _dot(BuildContext context, int i) {
-    final active = i <= current;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          width: active ? 30 : 12,
-          height: 30,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: active ? AppColors.primary : AppColors.accent.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Text(
-            '${i + 1}',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
             ),
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          labels[i],
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: active ? AppColors.primary : AppColors.textMuted,
-                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+          Positioned(
+            top: 10,
+            right: 10,
+            child: GestureDetector(
+              onTap: () => setState(() => _imageFile = null),
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: const BoxDecoration(
+                  color: Colors.black54,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.close_rounded, color: Colors.white, size: 18),
               ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF14201A) : AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: isDark ? Colors.white.withValues(alpha: 0.1) : AppColors.line,
+          style: BorderStyle.solid,
         ),
-      ],
-    );
-  }
-}
-
-class _StepPanel extends StatelessWidget {
-  const _StepPanel({
-    super.key,
-    required this.icon,
-    required this.title,
-    this.subtitle,
-    required this.child,
-  });
-
-  final IconData icon;
-  final String title;
-  final String? subtitle;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+        boxShadow: AppShadows.luxuryCard,
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1B3D2B) : AppColors.mintGlow,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.camera_alt_outlined,
+              size: 26,
+              color: isDark ? const Color(0xFF52B788) : AppColors.emerald,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Lampirkan Bukti Foto',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: isDark ? Colors.white : AppColors.ink,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Foto yang jelas mempercepat penanganan oleh petugas',
+            style: TextStyle(
+              fontSize: 12.5,
+              color: isDark ? AppColors.darkMutedTextColor : AppColors.textSecondary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
           Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(icon, color: AppColors.primary),
+              OutlinedButton.icon(
+                onPressed: () => _pickImage(ImageSource.camera),
+                icon: const Icon(Icons.camera_alt_rounded, size: 16),
+                label: const Text('Kamera'),
               ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-                    if (subtitle != null)
-                      Text(subtitle ?? '', style: theme.textTheme.bodyMedium),
-                  ],
-                ),
+              const SizedBox(width: 10),
+              OutlinedButton.icon(
+                onPressed: () => _pickImage(ImageSource.gallery),
+                icon: const Icon(Icons.photo_library_rounded, size: 16),
+                label: const Text('Galeri'),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.lg),
-          child,
         ],
       ),
     );

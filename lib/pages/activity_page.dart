@@ -1,134 +1,111 @@
 import 'package:flutter/material.dart';
-
 import '../locator.dart';
 import '../models/laporan.dart';
-import '../models/user.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../ui/tokens.dart';
 import '../ui/widgets/report_card.dart';
-import '../ui/widgets/section_header.dart';
 import '../ui/widgets/state_views.dart';
+import 'buat_laporan_page.dart';
 import 'laporan_detail_page.dart';
 
+/// ActivityPage bergaya Apple Activity Summary:
+/// Menyajikan riwayat laporan pribadi pengguna secara terurut & clean.
 class ActivityPage extends StatefulWidget {
   const ActivityPage({super.key});
 
   @override
-  State<ActivityPage> createState() => ActivityPageState();
+  State<ActivityPage> createState() => _ActivityPageState();
 }
 
-class ActivityPageState extends State<ActivityPage> {
-  final ApiClient _api = locator<ApiClient>();
-  User? _user;
-  List<Laporan> _all = [];
-  bool _loading = true;
-  String? _error;
-  int _reqSeq = 0;
+class _ActivityPageState extends State<ActivityPage> {
+  final ApiClient _apiClient = locator<ApiClient>();
+  final AuthService _authService = locator<AuthService>();
+
+  List<Laporan> _myReports = [];
+  bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    _loadActivity();
   }
 
-  void refresh({bool silent = false}) => _load(silent: silent);
+  Future<void> _loadActivity() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
-  Future<void> _load({bool silent = false}) async {
-    final seq = ++_reqSeq;
-    if (!mounted) return;
-    if (!silent || _all.isEmpty) {
-      setState(() {
-        _loading = true;
-        _error = null;
-      });
-    }
     try {
-      _user = await locator<AuthService>().getMe();
-      _all = await _api.fetchReportsAsModel(limit: 20);
-      if (seq != _reqSeq || !mounted) return;
-      setState(() {});
-    } catch (e) {
-      if (seq != _reqSeq || !mounted) return;
-      setState(() => _error = e.toString());
-    } finally {
-      if (seq == _reqSeq && mounted) setState(() => _loading = false);
-    }
-  }
+      final user = await _authService.getMe();
+      final allReports = await _apiClient.fetchReportsAsModel(limit: 100);
 
-  List<Laporan> get _myReports {
-    final uid = _user?.id;
-    if (uid == null) return [];
-    return _all.where((l) => l.user?.id == uid).toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      if (mounted) {
+        setState(() {
+          if (user != null) {
+            _myReports = allReports.where((r) => r.user?.id == user.id).toList();
+          } else {
+            _myReports = allReports;
+          }
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString().replaceAll('Exception: ', '');
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final my = _myReports;
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        bottom: false,
-        child: RefreshIndicator(
-          onRefresh: _load,
-          child: CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            slivers: [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.sm),
-                  child: SectionHeader(
-                    title: 'Aktivitas Saya',
-                    subtitle: 'Riwayat laporan yang kamu buat',
-                  ),
-                ),
-              ),
-              if (_loading)
-                const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.all(AppSpacing.lg),
-                    child: Column(children: [
-                      SkeletonReportCard(),
-                      SizedBox(height: AppSpacing.sm),
-                      SkeletonReportCard(),
-                      SizedBox(height: AppSpacing.sm),
-                      SkeletonReportCard(),
-                    ]),
-                  ),
-                )
-              else if (_error != null)
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: ErrorRetry(onRetry: _load, message: _error ?? 'Terjadi kesalahan'),
-                )
-              else if (my.isEmpty)
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: EmptyState(
-                    icon: Icons.assignment_outlined,
-                    title: 'Belum ada aktivitas',
-                    subtitle: 'Laporan yang kamu buat akan muncul di sini.',
-                  ),
-                )
-              else
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, 24),
-                  sliver: SliverList.separated(
-                    itemBuilder: (context, i) => ReportCard(
-                      laporan: my[i],
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => LaporanDetailPage(laporan: my[i])),
-                      ).then((_) { if (mounted) _load(); }),
-                    ),
-                    separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
-                    itemCount: my.length,
-                  ),
-                ),
-            ],
-          ),
-        ),
+      appBar: AppBar(
+        title: const Text('Aktivitas Saya'),
+      ),
+      body: RefreshIndicator(
+        onRefresh: _loadActivity,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator(color: AppColors.forest))
+            : _errorMessage != null
+                ? ErrorStateView(message: _errorMessage!, onRetry: _loadActivity)
+                : _myReports.isEmpty
+                    ? EmptyStateView(
+                        icon: Icons.history_rounded,
+                        title: 'Belum Ada Aktivitas',
+                        description: 'Semua laporan yang Anda kirimkan akan tercatat rapi di halaman ini.',
+                        actionLabel: 'Mulai Lapor',
+                        onAction: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const BuatLaporanPage()),
+                        ),
+                      )
+                    : ListView.builder(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        itemCount: _myReports.length + 1,
+                        itemBuilder: (context, index) {
+                          if (index == _myReports.length) {
+                            return const SizedBox(height: 80);
+                          }
+                          final r = _myReports[index];
+                          return ReportCard(
+                            report: r,
+                            onTap: () async {
+                              await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => LaporanDetailPage(reportId: r.id),
+                                ),
+                              );
+                              _loadActivity();
+                            },
+                          );
+                        },
+                      ),
       ),
     );
   }

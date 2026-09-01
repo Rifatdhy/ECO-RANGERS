@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -18,9 +19,6 @@ class ApiClient {
   // tanpa TLS/TCP handshake baru tiap request.
   final http.Client _client = http.Client();
 
-  // Request deduplication: mencegah race condition dari multiple calls
-  final Map<String, Future<dynamic>> _inflightRequests = {};
-
   /// Jika token tak valid/expired, bersihkan sesi & arahkan ke halaman login.
   void _checkAuth(http.Response res) {
     if (res.statusCode == 401) {
@@ -34,28 +32,21 @@ class ApiClient {
     while (true) {
       attempts++;
       try {
-        return await future.timeout(_timeout, onTimeout: () {
-          throw TimeoutException('$op timeout setelah ${_timeout.inSeconds}s', _timeout);
-        });
-      } on TimeoutException {
-        if (attempts >= maxRetries) rethrow;
-        await Future.delayed(_retryDelay * attempts);
-      } on SocketException {
-        if (attempts >= maxRetries) throw Exception('Koneksi internet tidak tersedia');
-        await Future.delayed(_retryDelay * attempts);
+        return await future.timeout(_timeout);
+      } on Exception catch (e) {
+        if (e.toString().contains('timeout')) {
+          if (attempts >= maxRetries) throw Exception('$op timeout setelah ${_timeout.inSeconds}s');
+          await Future.delayed(_retryDelay * attempts);
+          continue;
+        }
+        if (e is SocketException) {
+          if (attempts >= maxRetries) throw Exception('Koneksi internet tidak tersedia');
+          await Future.delayed(_retryDelay * attempts);
+          continue;
+        }
+        rethrow;
       }
     }
-  }
-
-  /// Request deduplication: mencegah duplicate calls bersamaan
-  Future<T> _dedup<T>(String key, Future<T> Function() fn) {
-    if (_inflightRequests.containsKey(key)) {
-      return _inflightRequests[key] as Future<T>;
-    }
-    final future = fn();
-    _inflightRequests[key] = future;
-    future.whenComplete(() => _inflightRequests.remove(key));
-    return future;
   }
 
   Future<List<dynamic>> getReports({String? status, String? kategori, String? q, int? limit, int? offset}) async {
